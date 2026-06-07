@@ -91,9 +91,67 @@ export function compareCompetitorSignal() {
     label: "Simulated market signal",
     signal: "Nearby competitor is promoting wedding guest capsule edits this week.",
     implication:
-      "RetailNext should connect customer intent, stock location and associate briefing before the weekend event window.",
+      "Connect customer intent, stock location and associate briefing before the weekend event window.",
     source: "Deterministic mock data; no scraping performed.",
   };
+}
+
+function titleCase(value: string) {
+  return value.replace(/\b\w/g, (character) => character.toUpperCase());
+}
+
+function primaryRequestedItem(record: DemandRecord) {
+  return (
+    record.requestedItems.find((item) => !["outfit", "clothes"].includes(item.toLowerCase())) ??
+    record.category ??
+    "assortment"
+  ).toLowerCase();
+}
+
+function missedDemandSignal(records: DemandRecord[]): BuySignal[] {
+  const groups = new Map<string, DemandRecord[]>();
+
+  for (const record of records.filter((item) => !item.foundInStock || item.missedReason)) {
+    const item = primaryRequestedItem(record);
+    const plusSize = [...record.constraints, record.size, record.query]
+      .join(" ")
+      .toLowerCase()
+      .includes("plus");
+    const key = [plusSize ? "plus-size" : "standard", record.occasion, item, record.gender, record.size].join("|");
+    groups.set(key, [...(groups.get(key) ?? []), record]);
+  }
+
+  return Array.from(groups.values()).map((group) => {
+    const example = group[0];
+    const item = primaryRequestedItem(example);
+    const plusSize = [...example.constraints, example.size, example.query]
+      .join(" ")
+      .toLowerCase()
+      .includes("plus");
+    const averageQuality = group.reduce((sum, record) => sum + record.demandQualityScore, 0) / group.length;
+    const confidenceScore = Math.min(95, Math.round(42 + group.length * 20 + averageQuality * 0.12));
+    const demandPattern = plusSize
+      ? `Plus-size ${example.occasion.replace(" wedding", "")} ${item} gap`
+      : `${titleCase(example.occasion)} ${item}${example.size !== "Any" ? ` size ${example.size}` : ""} gap`;
+    const networkScope = example.missedReason?.toLowerCase().includes("three-store")
+      ? "Three-store network"
+      : example.store;
+    const recommendedAction = plusSize
+      ? `Increase size ${example.size} ${item} depth across the three-store network; use online or special order until stock lands.`
+      : example.foundRelevantMatch
+        ? `Reallocate or buy ${item}${example.size !== "Any" ? ` in size ${example.size}` : ""} for ${example.occasion} demand; use nearby or online fulfilment meanwhile.`
+        : `Review the ${item} assortment for ${example.occasion} demand and test a targeted range before the next event window.`;
+
+    return {
+      demandPattern,
+      affectedStoreCategorySize: `${networkScope} / ${example.gender.toLowerCase()} ${item} / size ${example.size}`,
+      evidenceCount: group.length,
+      estimatedMissedRevenue: group.reduce((sum, record) => sum + record.estimatedLostRevenue, 0),
+      recommendedAction,
+      confidenceLevel: confidenceScore >= 80 ? "High" : confidenceScore >= 60 ? "Medium" : "Low",
+      confidenceScore,
+    };
+  });
 }
 
 export function recommendBusinessActions({
@@ -103,45 +161,13 @@ export function recommendBusinessActions({
   records: DemandRecord[];
   threshold: number;
 }) {
-  const misses = records.filter((record) => !record.foundInStock || record.missedReason);
-  const plusFormal = misses.filter((record) =>
-    [...record.constraints, record.size, record.query].join(" ").toLowerCase().includes("plus"),
-  );
-  const wedding = records.filter((record) => record.occasion.includes("wedding"));
-  const graduation = records.filter((record) => record.occasion.includes("graduation"));
   const findability = records.filter((record) =>
     [record.missedReason, ...record.constraints, record.query].join(" ").toLowerCase().includes("findability"),
   );
-
   const signals: BuySignal[] = [
-    {
-      demandPattern: "Plus-size winter formalwear gap",
-      affectedStoreCategorySize: "RetailNext Oak Street / women formalwear / size 18",
-      evidenceCount: plusFormal.length,
-      estimatedMissedRevenue: plusFormal.reduce((sum, record) => sum + record.estimatedLostRevenue, 0),
-      recommendedAction: "Brief buyers on plus-size formalwear depth and promote available substitutes transparently.",
-      confidenceLevel: plusFormal.length >= 2 ? "High" : plusFormal.length === 1 ? "Medium" : "Low",
-      confidenceScore: Math.min(95, 45 + plusFormal.length * 25),
-    },
-    {
-      demandPattern: "Weekend wedding guest capsule demand",
-      affectedStoreCategorySize: "RetailNext Oak Street / mens and women occasionwear / navy, black, brown",
-      evidenceCount: wedding.length,
-      estimatedMissedRevenue: wedding.reduce((sum, record) => sum + record.estimatedLostRevenue, 0),
-      recommendedAction: "Move shirt, trouser, formal shoe and dress inventory into a weekend capsule rail.",
-      confidenceLevel: wedding.length >= 3 ? "High" : wedding.length === 2 ? "Medium" : "Low",
-      confidenceScore: Math.min(94, 42 + wedding.length * 18),
-    },
-    {
-      demandPattern: "Graduation accessory partial fulfilment",
-      affectedStoreCategorySize: "RetailNext Oak Street / ceremony accessories / bag and comfort footwear",
-      evidenceCount: graduation.length,
-      estimatedMissedRevenue: graduation.reduce((sum, record) => sum + record.estimatedLostRevenue, 0),
-      recommendedAction: "Create ceremony accessory signage and monitor bag demand before reorder.",
-      confidenceLevel: graduation.length >= 3 ? "High" : graduation.length === 2 ? "Medium" : "Low",
-      confidenceScore: Math.min(90, 40 + graduation.length * 17),
-    },
-    {
+    ...missedDemandSignal(records),
+    ...(findability.length
+      ? [{
       demandPattern: "Available but hard-to-find occasionwear",
       affectedStoreCategorySize: "RetailNext Oak Street / occasion dresses and shoes / cross-floor route",
       evidenceCount: findability.length,
@@ -149,20 +175,25 @@ export function recommendBusinessActions({
       recommendedAction: "Brief associates and add route signage from dresses to occasion footwear.",
       confidenceLevel: findability.length >= 2 ? "High" : findability.length === 1 ? "Medium" : "Low",
       confidenceScore: Math.min(88, 38 + findability.length * 24),
-    },
+    } satisfies BuySignal]
+      : []),
   ];
+  const rankedSignals = [...signals].sort(
+    (left, right) =>
+      right.estimatedMissedRevenue - left.estimatedMissedRevenue ||
+      right.confidenceScore - left.confidenceScore,
+  );
 
   return {
     threshold,
-    recommendedBuySignals: signals.filter((signal) => signal.confidenceScore >= threshold && signal.evidenceCount > 0),
-    allSignals: signals,
+    recommendedBuySignals: rankedSignals.filter(
+      (signal) => signal.confidenceScore >= threshold && signal.evidenceCount > 0,
+    ),
+    allSignals: rankedSignals,
     recommendedActions: [
-      "Move inventory into a weekend wedding and gala capsule rail.",
-      "Create event display or capsule rail near Occasionwear.",
+      ...rankedSignals.slice(0, 3).map((signal) => signal.recommendedAction),
       "Brief associates on cross-floor route steps and substitutions.",
-      "Promote substitute looks online when in-store size depth is thin.",
-      "Adjust signage between occasion dresses, formal shoes and fitting rooms.",
-      "Monitor conversion, poor review themes and repeated plus-size misses.",
+      "Monitor conversion and repeated misses as new customer evidence arrives.",
     ],
   };
 }

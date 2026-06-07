@@ -21,9 +21,11 @@ function outputFor<T>(trace: TrendToolTrace[], name: string) {
 
 function deterministicResult({
   traces,
+  prompt,
   fallbackUsed = false,
 }: {
   traces: TrendToolTrace[];
+  prompt: string;
   fallbackUsed?: boolean;
 }): TrendToRackResult {
   const intents = outputFor<{
@@ -52,17 +54,36 @@ function deterministicResult({
   }>(traces, "compare_competitor_signal");
   const actions = outputFor<{
     recommendedBuySignals: TrendToRackResult["buySignals"];
+    allSignals: TrendToRackResult["buySignals"];
     recommendedActions: string[];
   }>(traces, "recommend_business_actions");
 
   const missedRevenue = gaps.estimatedMissedRevenue || intents.missedRevenue;
+  const rankedMisses = [...actions.allSignals]
+    .filter((signal) => signal.evidenceCount > 0)
+    .sort(
+      (left, right) =>
+        right.estimatedMissedRevenue - left.estimatedMissedRevenue ||
+        right.confidenceScore - left.confidenceScore,
+    );
+  const biggestMiss = rankedMisses[0];
+  const asksForBiggestMiss = /\b(biggest|largest|top|greatest|most important)\b.*\b(miss|gap|loss|opportunity)\b/i.test(
+    prompt,
+  );
+  const nextMove = biggestMiss
+    ? asksForBiggestMiss
+      ? `${biggestMiss.demandPattern}: ${biggestMiss.recommendedAction}`
+      : biggestMiss.recommendedAction
+    : "Monitor new customer searches until a demand gap crosses the evidence threshold.";
 
   return {
     mode: fallbackUsed ? "demo" : "demo",
     fallbackUsed,
     fallbackMessage: fallbackUsed ? "Live AI unavailable — showing simulated result." : null,
-    executiveBrief: `RetailNext is seeing ${intents.totalSignals} event-led demand signals, including ${intents.missedSearches} miss or partial-miss signal(s), before the weekend. The clearest gap is plus-size formalwear and ceremony accessory fulfilment, with $${missedRevenue} in estimated missed revenue grounded in demand records. The next move is to create a weekend occasionwear capsule, brief associates on exact routes, and monitor whether repeated misses cross the merchandising threshold.`,
-    nextMove: "Stand up a weekend wedding and gala capsule rail at Oak Street, then brief associates on route steps and substitutions.",
+    executiveBrief: biggestMiss
+      ? `${biggestMiss.demandPattern} is the largest grounded miss at $${biggestMiss.estimatedMissedRevenue}, based on ${biggestMiss.evidenceCount} customer signal(s).`
+      : `${intents.totalSignals} demand signal(s) were analysed with no material missed-revenue gap.`,
+    nextMove,
     buySignals: actions.recommendedBuySignals,
     demandSignals: intents.emergingIntents,
     inventoryGaps: gaps.categorySizeColourRisks,
@@ -116,7 +137,7 @@ async function callForcedTool(name: TrendToolName, input: TrendInput) {
           type: "function",
           function: {
             name,
-            description: `Trend-to-Rack local tool: ${name}`,
+            description: `Maven intelligence tool: ${name}`,
             parameters: {
               type: "object",
               properties: {
@@ -139,7 +160,7 @@ async function callForcedTool(name: TrendToolName, input: TrendInput) {
   }
 }
 
-async function synthesizeLiveBrief(traces: TrendToolTrace[]) {
+async function synthesizeLiveBrief(traces: TrendToolTrace[], prompt: string) {
   const client = getOpenAIClient();
 
   // Production seam: this is where the real OpenAI call happens.
@@ -151,11 +172,12 @@ async function synthesizeLiveBrief(traces: TrendToolTrace[]) {
         {
           role: "system",
           content:
-            "You write concise executive retail actions grounded only in supplied tool outputs. Return JSON with executiveBrief and nextMove. nextMove must be one sentence under 20 words. executiveBrief must be no more than two short sentences.",
+            "You write concise executive retail actions grounded only in supplied tool outputs. Answer the executiveQuestion directly. If it asks for the biggest miss, rank by estimatedMissedRevenue and do not double-count overlapping signals or prioritize confidence over revenue. Return JSON with executiveBrief and nextMove. nextMove must be one sentence under 24 words. executiveBrief must be no more than two short sentences.",
         },
         {
           role: "user",
           content: JSON.stringify({
+            executiveQuestion: prompt,
             toolOutputs: traces,
           }),
         },
@@ -171,10 +193,31 @@ async function synthesizeLiveBrief(traces: TrendToolTrace[]) {
 
 export async function runTrendToRackCopilot(input: TrendInput): Promise<TrendToRackResult> {
   const records = combineDemandRecords(input.demandRecords);
+  if (!records.length) {
+    return {
+      mode: input.mode,
+      fallbackUsed: false,
+      fallbackMessage: null,
+      executiveBrief: "No customer evidence is available yet.",
+      nextMove: "Launch a Style story before asking Maven for a growth plan.",
+      buySignals: [],
+      demandSignals: [],
+      inventoryGaps: [],
+      findabilityGaps: [],
+      recommendedActions: [],
+      evidencePanel: [],
+      businessImpact: [],
+      trace: [],
+    };
+  }
   const traces = runTrendTools(records, input.threshold);
 
+  if (input.mode === "demo") {
+    return deterministicResult({ traces, prompt: input.prompt });
+  }
+
   if (!hasOpenAIKey()) {
-    return deterministicResult({ traces });
+    return deterministicResult({ traces, prompt: input.prompt, fallbackUsed: true });
   }
 
   try {
@@ -182,17 +225,17 @@ export async function runTrendToRackCopilot(input: TrendInput): Promise<TrendToR
       await callForcedTool(name, input);
     }
 
-    const liveBrief = await synthesizeLiveBrief(traces);
-    const deterministic = deterministicResult({ traces });
+    const liveBrief = await synthesizeLiveBrief(traces, input.prompt);
+    const deterministic = deterministicResult({ traces, prompt: input.prompt });
 
     return {
       ...deterministic,
       mode: "live",
       executiveBrief: liveBrief.executiveBrief || deterministic.executiveBrief,
-      nextMove: liveBrief.nextMove || deterministic.nextMove,
+      nextMove: deterministic.nextMove,
     };
   } catch (error) {
-    console.error("Live Trend-to-Rack copilot failed", error);
-    return deterministicResult({ traces, fallbackUsed: true });
+    console.error("Live Maven analysis failed", error);
+    return deterministicResult({ traces, prompt: input.prompt, fallbackUsed: true });
   }
 }

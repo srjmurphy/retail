@@ -1,6 +1,7 @@
-import type { DemandRecord } from "@/types/demo";
+import type { DemandRecord, RunMode } from "@/types/demo";
 
 export type TrendInput = {
+  mode: RunMode;
   prompt: string;
   threshold: number;
   demandRecords: DemandRecord[];

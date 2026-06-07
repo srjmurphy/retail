@@ -20,7 +20,7 @@ export function ModeToggle({
         }`}
       >
         <Cpu className="h-4 w-4" aria-hidden="true" />
-        Demo mode
+        Demo data
       </button>
       <button
         type="button"
@@ -30,7 +30,7 @@ export function ModeToggle({
         }`}
       >
         <Sparkles className="h-4 w-4" aria-hidden="true" />
-        Live AI mode
+        Maven Live
       </button>
     </div>
   );

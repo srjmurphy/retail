@@ -28,11 +28,10 @@ export function InStoreRouteView({
   if (!selected) {
     return (
       <section className="rounded-lg border border-neutral-200 bg-white p-8 shadow-sm">
-        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-neutral-500">Locate</p>
-        <h1 className="mt-2 text-2xl font-semibold text-neutral-950">In-store route</h1>
+        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-blue-700">Fulfil</p>
+        <h1 className="mt-2 text-2xl font-semibold text-neutral-950">Maven Navigator</h1>
         <p className="mt-3 max-w-2xl text-sm leading-6 text-neutral-600">
-          Select “Locate in store” from a recommendation to open the route card with deterministic inventory and store
-          location facts.
+          Choose a product from Style to turn live inventory into an associate-ready store route.
         </p>
         <button
           type="button"
@@ -40,7 +39,7 @@ export function InStoreRouteView({
           className="mt-5 inline-flex items-center gap-2 rounded-md bg-neutral-950 px-4 py-2.5 text-sm font-semibold text-white"
         >
           <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-          Back to recommendations
+          Back to Style
         </button>
       </section>
     );
@@ -49,7 +48,7 @@ export function InStoreRouteView({
   if (!selected.location || !selected.inventory) {
     return (
       <section className="rounded-lg border border-neutral-200 bg-white p-8 shadow-sm">
-        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-neutral-500">Locate</p>
+        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-blue-700">Fulfil</p>
         <h1 className="mt-2 text-2xl font-semibold text-neutral-950">{selected.product.productDisplayName}</h1>
         <p className="mt-3 rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-900">
           {inventoryStatusLabel(selected.inventoryStatus)}
@@ -60,7 +59,7 @@ export function InStoreRouteView({
           className="mt-5 inline-flex items-center gap-2 rounded-md bg-neutral-950 px-4 py-2.5 text-sm font-semibold text-white"
         >
           <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-          Back to recommendations
+          Back to Style
         </button>
       </section>
     );
@@ -111,8 +110,8 @@ export function InStoreRouteView({
   return (
     <section className="grid gap-6 lg:grid-cols-[0.82fr_1.18fr]">
       <div className="rounded-lg border border-neutral-200 bg-white p-5 shadow-sm">
-        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-neutral-500">Locate</p>
-        <h1 className="mt-1 text-2xl font-semibold text-neutral-950">In-store route</h1>
+        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-blue-700">Fulfil</p>
+        <h1 className="mt-1 text-2xl font-semibold text-neutral-950">Maven Navigator</h1>
         <div className="mt-5">
           <ProductImage selected={selected} />
         </div>
@@ -195,7 +194,7 @@ export function InStoreRouteView({
             className="inline-flex items-center gap-2 rounded-md border border-neutral-300 bg-white px-4 py-2.5 text-sm font-semibold text-neutral-900"
           >
             <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-            Back to recommendations
+            Back to Style
           </button>
         </div>
       </div>

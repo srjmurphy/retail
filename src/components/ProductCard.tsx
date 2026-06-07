@@ -17,7 +17,7 @@ function ProductImage({ recommendation }: { recommendation: RecommendationCard }
 
   return (
     <div className="flex h-52 w-full items-center justify-center rounded-md bg-[linear-gradient(135deg,#ece7dc,#f8f6ef)] text-sm font-medium text-neutral-500">
-      RetailNext product image
+      Product image
     </div>
   );
 }
@@ -38,9 +38,15 @@ export function ProductCard({
       : recommendation.inventoryStatus === "nearby_store"
         ? "bg-blue-50 text-blue-700"
         : "bg-amber-50 text-amber-800";
+  const cardTone =
+    recommendation.inventoryStatus === "in_stock"
+      ? "border-t-emerald-500"
+      : recommendation.inventoryStatus === "nearby_store"
+        ? "border-t-blue-500"
+        : "border-t-amber-500";
 
   return (
-    <article className="rounded-lg border border-neutral-200 bg-white p-4 shadow-sm">
+    <article className={`rounded-lg border border-t-4 border-neutral-200 bg-white p-4 shadow-sm ${cardTone}`}>
       <ProductImage recommendation={recommendation} />
       <div className="mt-4 flex items-start justify-between gap-3">
         <div>

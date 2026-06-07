@@ -166,7 +166,7 @@ function createDemandRecord({
     store: "RetailNext Oak Street",
     category: recommendations[0]?.product.subCategory ?? "occasionwear",
     demandQualityScore: request.query.match(/(?:under|below|less than)\s*\$?(\d+)/i) ? 88 : 74,
-    source: "Style Concierge",
+    source: "Maven Stylist",
   };
 }
 
@@ -203,7 +203,7 @@ async function executeInventoryToolLive({
           type: "function",
           function: {
             name: "check_inventory_and_location",
-            description: "Check deterministic RetailNext inventory and in-store location for product IDs.",
+            description: "Check verified inventory and in-store location for product IDs.",
             parameters: {
               type: "object",
               properties: {
@@ -321,7 +321,7 @@ async function runPipeline(request: RecommendationRequest, runMode: RunMode): Pr
         status: "not_ranged",
         inventory: null,
         location: null,
-        reason: "Not stocked at this store in deterministic RetailNext mock data.",
+        reason: "Not stocked at this store in the demo inventory.",
       } satisfies InventoryToolResult);
     const guardrail = guardrails[index] ?? ({ accepted: false, reason: "No guardrail result." } satisfies GuardrailResult);
 

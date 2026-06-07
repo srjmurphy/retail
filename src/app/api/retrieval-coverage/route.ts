@@ -44,7 +44,7 @@ export async function GET() {
     }),
   );
 
-  console.log("RetailNext retrieval coverage", results);
+  console.log("Maven retrieval coverage", results);
 
   return NextResponse.json({ results });
 }

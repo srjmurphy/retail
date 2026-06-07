@@ -209,6 +209,24 @@ const workflowIcons = {
   unmet_demand: CircleX,
 };
 
+const workflowColours = {
+  happy_path: {
+    active: "border-emerald-600 bg-emerald-700 text-white",
+    idle: "border-emerald-200 bg-emerald-50/70 text-emerald-950",
+    icon: "bg-white text-emerald-700 shadow-sm",
+  },
+  distributed_stock: {
+    active: "border-blue-600 bg-blue-700 text-white",
+    idle: "border-blue-200 bg-blue-50/70 text-blue-950",
+    icon: "bg-white text-blue-700 shadow-sm",
+  },
+  unmet_demand: {
+    active: "border-rose-600 bg-rose-700 text-white",
+    idle: "border-rose-200 bg-rose-50/70 text-rose-950",
+    icon: "bg-white text-rose-700 shadow-sm",
+  },
+};
+
 function WorkflowOutcome({
   workflowId,
   recommendations,
@@ -239,7 +257,7 @@ function WorkflowOutcome({
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.16em] text-neutral-600">
-            Workflow {workflow.sequence} of 3 · {workflow.label}
+            Story {workflow.sequence} of 3 · {workflow.label}
           </p>
           <h2 className="mt-1 text-lg font-semibold text-neutral-950">{workflow.title}</h2>
         </div>
@@ -355,121 +373,47 @@ export function RecommendView({
     <section>
       <LazyPipelineOverlay
         visible={loading}
-        title="Running Style Concierge request"
+        title="Maven is building the look"
         steps={recommendSteps}
         activeStep={activeStep}
       />
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
-      <div className="rounded-lg border border-neutral-200 bg-white p-5 shadow-sm">
+      <div className="rounded-lg border border-t-4 border-neutral-200 border-t-emerald-600 bg-white p-5 shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-neutral-500">Recommend</p>
-            <h1 className="mt-1 text-2xl font-semibold text-neutral-950">Style Concierge</h1>
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-700">Style</p>
+            <h1 className="mt-1 text-2xl font-semibold text-neutral-950">Maven Stylist</h1>
+            <p className="mt-1 text-sm text-neutral-600">One request. A complete, shoppable look.</p>
           </div>
           <div className="flex rounded-md border border-neutral-200 bg-neutral-50 p-1">
             <button
               type="button"
               onClick={() => setInputMode("text")}
               className={`flex items-center gap-2 rounded px-3 py-2 text-sm font-medium ${
-                inputMode === "text" ? "bg-white text-neutral-950 shadow-sm" : "text-neutral-600"
+                inputMode === "text" ? "bg-emerald-600 text-white shadow-sm" : "text-neutral-600"
               }`}
             >
               <Type className="h-4 w-4" aria-hidden="true" />
-              Occasion text
+              Describe it
             </button>
             <button
               type="button"
               onClick={() => setInputMode("photo")}
               className={`flex items-center gap-2 rounded px-3 py-2 text-sm font-medium ${
-                inputMode === "photo" ? "bg-white text-neutral-950 shadow-sm" : "text-neutral-600"
+                inputMode === "photo" ? "bg-blue-600 text-white shadow-sm" : "text-neutral-600"
               }`}
             >
               <Camera className="h-4 w-4" aria-hidden="true" />
-              Photo mode
+              Show it
             </button>
-          </div>
-        </div>
-
-        <div className="mt-5">
-          <p className="text-sm font-semibold text-neutral-900">Select a workflow</p>
-          <div className="mt-3 grid gap-3">
-            {RECOMMENDATION_WORKFLOWS.map((workflow) => {
-              const Icon = workflowIcons[workflow.id];
-              const active = activeWorkflowId === workflow.id;
-
-              return (
-                <article
-                  key={workflow.id}
-                  className={`rounded-md border p-4 transition ${
-                    active
-                      ? "border-neutral-950 bg-neutral-950 text-white"
-                      : "border-neutral-200 bg-neutral-50 text-neutral-950"
-                  }`}
-                >
-                  <div className="flex items-start gap-3">
-                    <span
-                      className={`inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md ${
-                        active ? "bg-white/15 text-white" : "bg-white text-neutral-800 shadow-sm"
-                      }`}
-                    >
-                      <Icon className="h-5 w-5" aria-hidden="true" />
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <p
-                        className={`text-xs font-semibold uppercase ${
-                          active ? "text-neutral-300" : "text-neutral-500"
-                        }`}
-                      >
-                        {workflow.label}
-                      </p>
-                      <h2 className="mt-1 text-base font-semibold">{workflow.title}</h2>
-                      <p className={`mt-1 text-sm leading-5 ${active ? "text-neutral-300" : "text-neutral-600"}`}>
-                        {workflow.description}
-                      </p>
-                    </div>
-                  </div>
-                  <p
-                    className={`mt-3 rounded-md border px-3 py-2 text-xs leading-5 ${
-                      active
-                        ? "border-white/15 bg-white/10 text-neutral-100"
-                        : "border-neutral-200 bg-white text-neutral-700"
-                    }`}
-                  >
-                    “{workflow.query}”
-                  </p>
-                  <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
-                    <p className={`text-xs font-medium ${active ? "text-white" : "text-neutral-800"}`}>
-                      {workflow.expectedOutcome}
-                    </p>
-                    <button
-                      type="button"
-                      disabled={loading}
-                      onClick={() => {
-                        setInputMode("text");
-                        setQuery(workflow.query);
-                        void submit({ queryOverride: workflow.query, workflowId: workflow.id });
-                      }}
-                      className={`inline-flex items-center gap-2 rounded-md px-3 py-2 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-60 ${
-                        active
-                          ? "bg-white text-neutral-950 hover:bg-neutral-100"
-                          : "bg-neutral-950 text-white hover:bg-neutral-800"
-                      }`}
-                    >
-                      <Play className="h-4 w-4" aria-hidden="true" />
-                      Run workflow
-                    </button>
-                  </div>
-                </article>
-              );
-            })}
           </div>
         </div>
 
         {inputMode === "text" ? (
           <div className="mt-5">
             <label htmlFor="style-query" className="text-sm font-semibold text-neutral-900">
-              Customer intent
+              What are they shopping for?
             </label>
             <textarea
               id="style-query"
@@ -521,15 +465,81 @@ export function RecommendView({
           </div>
         )}
 
+        <div className="mt-5 border-t border-neutral-200 pt-5">
+          <p className="text-sm font-semibold text-neutral-900">Or launch a demo story</p>
+          <div className="mt-3 grid gap-3">
+            {RECOMMENDATION_WORKFLOWS.map((workflow) => {
+              const Icon = workflowIcons[workflow.id];
+              const colours = workflowColours[workflow.id];
+              const active = activeWorkflowId === workflow.id;
+
+              return (
+                <article
+                  key={workflow.id}
+                  className={`rounded-md border p-4 transition ${active ? colours.active : colours.idle}`}
+                >
+                  <div className="flex items-start gap-3">
+                    <span
+                      className={`inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md ${
+                        active ? "bg-white/15 text-white" : colours.icon
+                      }`}
+                    >
+                      <Icon className="h-5 w-5" aria-hidden="true" />
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className={`text-xs font-semibold uppercase ${active ? "text-white/75" : "opacity-65"}`}>
+                        {workflow.label}
+                      </p>
+                      <h2 className="mt-1 text-base font-semibold">{workflow.title}</h2>
+                      <p className={`mt-1 text-sm leading-5 ${active ? "text-white/80" : "opacity-75"}`}>
+                        {workflow.description}
+                      </p>
+                    </div>
+                  </div>
+                  <p
+                    className={`mt-3 rounded-md border px-3 py-2 text-xs leading-5 ${
+                      active ? "border-white/20 bg-white/10 text-white" : "border-white/80 bg-white/80 text-neutral-700"
+                    }`}
+                  >
+                    “{workflow.query}”
+                  </p>
+                  <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+                    <p className={`text-xs font-medium ${active ? "text-white" : "opacity-80"}`}>
+                      {workflow.expectedOutcome}
+                    </p>
+                    <button
+                      type="button"
+                      disabled={loading}
+                      onClick={() => {
+                        setInputMode("text");
+                        setQuery(workflow.query);
+                        void submit({ queryOverride: workflow.query, workflowId: workflow.id });
+                      }}
+                      className={`inline-flex items-center gap-2 rounded-md px-3 py-2 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-60 ${
+                        active
+                          ? "bg-white text-neutral-950 hover:bg-neutral-100"
+                          : "bg-white text-neutral-950 shadow-sm hover:bg-neutral-50"
+                      }`}
+                    >
+                      <Play className="h-4 w-4" aria-hidden="true" />
+                      Launch story
+                    </button>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        </div>
+
         <div className="mt-5 flex flex-wrap items-center gap-3">
           <button
             type="button"
             onClick={() => void submit()}
             disabled={loading}
-            className="inline-flex items-center gap-2 rounded-md bg-neutral-950 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-neutral-800 disabled:cursor-not-allowed disabled:opacity-60"
+            className="inline-flex items-center gap-2 rounded-md bg-emerald-700 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-60"
           >
             <Search className="h-4 w-4" aria-hidden="true" />
-            Run Style Concierge
+            Style with Maven
           </button>
           {error ? <p className="text-sm font-medium text-red-700">{error}</p> : null}
         </div>
@@ -543,10 +553,10 @@ export function RecommendView({
             partialMatches={partialMatches}
           />
         ) : null}
-        <div className="rounded-lg border border-neutral-200 bg-white p-5 shadow-sm">
+        <div className="rounded-lg border border-t-4 border-neutral-200 border-t-blue-500 bg-white p-5 shadow-sm">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-neutral-500">Extracted intent</p>
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-blue-700">Maven understood</p>
               <h2 className="mt-1 text-lg font-semibold text-neutral-950">
                 {intent ? intent.occasion : "Ready for first request"}
               </h2>
@@ -608,9 +618,9 @@ export function RecommendView({
           </div>
         ) : (
           <div className="rounded-lg border border-neutral-200 bg-white p-6 shadow-sm">
-            <h2 className="text-lg font-semibold text-neutral-950">Cookbook-backed results will appear here</h2>
+            <h2 className="text-lg font-semibold text-neutral-950">Your shoppable edit will appear here</h2>
             <p className="mt-2 text-sm leading-6 text-neutral-600">
-              Product cards use local sample images when the product ID has a matching cookbook JPG.
+              Maven will connect customer intent with products, availability and the best next action.
             </p>
           </div>
         )}

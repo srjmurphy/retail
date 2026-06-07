@@ -27,7 +27,7 @@ export function LazyPipelineOverlay({
       <div className="pipeline-enter w-full max-w-xl rounded-lg border border-neutral-200 bg-[#fbfaf7] p-6 shadow-2xl">
         <div className="mb-5 flex items-center justify-between gap-4">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-neutral-500">RetailNext AI pipeline</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-violet-700">Maven intelligence</p>
             <h2 className="mt-2 text-xl font-semibold text-neutral-950">{title}</h2>
           </div>
           <Loader2 className="h-6 w-6 animate-spin text-amber-600" aria-hidden="true" />

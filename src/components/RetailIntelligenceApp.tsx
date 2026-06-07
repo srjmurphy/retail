@@ -27,24 +27,32 @@ const tabs: {
   title: string;
   subtitle: string;
   icon: typeof PackageSearch;
+  activeClass: string;
+  inactiveClass: string;
 }[] = [
   {
     id: "recommend",
-    title: "Recommend",
-    subtitle: "Style Concierge",
+    title: "Style",
+    subtitle: "AI personal shopper",
     icon: PackageSearch,
+    activeClass: "border-emerald-700 bg-emerald-700 text-white",
+    inactiveClass: "border-emerald-100 bg-emerald-50/60 text-emerald-950 hover:border-emerald-300",
   },
   {
     id: "locate",
-    title: "Locate",
-    subtitle: "In-store route",
+    title: "Fulfil",
+    subtitle: "Inventory navigator",
     icon: MapPinned,
+    activeClass: "border-blue-700 bg-blue-700 text-white",
+    inactiveClass: "border-blue-100 bg-blue-50/60 text-blue-950 hover:border-blue-300",
   },
   {
     id: "optimise",
-    title: "Optimise",
-    subtitle: "Trend-to-Rack Copilot",
+    title: "Grow",
+    subtitle: "Maven intelligence",
     icon: TrendingUp,
+    activeClass: "border-violet-700 bg-violet-700 text-white",
+    inactiveClass: "border-violet-100 bg-violet-50/60 text-violet-950 hover:border-violet-300",
   },
 ];
 
@@ -100,13 +108,16 @@ export function RetailIntelligenceApp() {
   return (
     <main className="min-h-screen px-4 py-5 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-[1500px]">
-        <header className="rounded-lg border border-neutral-200 bg-white/90 p-4 shadow-sm backdrop-blur">
+        <header className="rounded-lg border border-neutral-200 border-t-4 border-t-teal-700 bg-white/90 p-4 shadow-sm backdrop-blur">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.18em] text-neutral-500">
-                RetailNext AI retail intelligence
+                AI retail intelligence
               </p>
-              <h1 className="mt-1 text-2xl font-semibold text-neutral-950">Recommend → Locate → Optimise</h1>
+              <h1 className="mt-1 text-3xl font-semibold text-neutral-950">RetailNext Maven</h1>
+              <p className="mt-1 text-sm font-medium text-neutral-600">
+                The AI retail expert that turns customer intent into the next best sale.
+              </p>
             </div>
             <div className="flex flex-wrap items-center gap-3">
               <ModeToggle mode={mode} onChange={setMode} />
@@ -138,9 +149,7 @@ export function RetailIntelligenceApp() {
                   type="button"
                   onClick={() => setActiveTab(tab.id)}
                   className={`flex items-center gap-3 rounded-lg border px-4 py-3 text-left transition ${
-                    active
-                      ? "border-neutral-950 bg-neutral-950 text-white"
-                      : "border-neutral-200 bg-white text-neutral-800 hover:border-neutral-400"
+                    active ? tab.activeClass : tab.inactiveClass
                   }`}
                 >
                   <Icon className="h-5 w-5" aria-hidden="true" />

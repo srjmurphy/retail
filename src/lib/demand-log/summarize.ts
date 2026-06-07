@@ -1,9 +1,8 @@
 import type { DemandRecord } from "@/types/demo";
-import { SEEDED_DEMAND } from "./seed";
 
 export function combineDemandRecords(liveDemand: DemandRecord[]) {
   const seen = new Set<string>();
-  return [...SEEDED_DEMAND, ...liveDemand].filter((record) => {
+  return liveDemand.filter((record) => {
     if (seen.has(record.id)) return false;
     seen.add(record.id);
     return true;

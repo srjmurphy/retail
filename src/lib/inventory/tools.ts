@@ -210,7 +210,7 @@ export function checkInventoryAndLocation({
         inventory: matchingInventory,
         location,
         reason: location
-          ? "Inventory and in-store route found in deterministic RetailNext mock data."
+          ? "Inventory and in-store route found in the demo network."
           : "Inventory exists but no in-store location record is available, so locate action is suppressed.",
       };
     }
@@ -238,7 +238,7 @@ export function checkInventoryAndLocation({
         status: "online_only",
         inventory: null,
         location: null,
-        reason: "Available online only in deterministic RetailNext mock data.",
+        reason: "Available online only in the demo network.",
       };
     }
 
@@ -257,7 +257,7 @@ export function checkInventoryAndLocation({
       status: "not_ranged",
       inventory: null,
       location: null,
-      reason: "Not stocked at this store in deterministic RetailNext mock data.",
+      reason: "Not stocked at this store in the demo network.",
     };
   });
 }
