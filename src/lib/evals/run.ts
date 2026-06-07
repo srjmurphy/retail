@@ -145,7 +145,7 @@ export async function runMavenEvals(includeLive = false) {
     const livePhoto = await runRecommendationPipeline({
       mode: "live",
       inputMode: "photo",
-      query: "Find an outfit inspired by this image for a work gala, women's size 10, under $300.",
+      query: "",
       imageDataUrl: `data:image/jpeg;base64,${imageBytes.toString("base64")}`,
     });
     results.push(
@@ -153,8 +153,11 @@ export async function runMavenEvals(includeLive = false) {
         "Live multimodal photo intent",
         livePhoto.mode === "live" &&
           livePhoto.trace.models.intent !== "deterministic-parser" &&
-          livePhoto.intent.colours.length > 0,
-        `${livePhoto.intent.category}; ${livePhoto.intent.colours.join(", ")}`,
+          livePhoto.intent.colours.includes("black") &&
+          livePhoto.intent.occasion === "style inspiration" &&
+          livePhoto.intent.size === "Any" &&
+          livePhoto.intent.budget === null,
+        `${livePhoto.intent.occasion}; ${livePhoto.intent.category}; ${livePhoto.intent.colours.join(", ")}`,
       ),
     );
 

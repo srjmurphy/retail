@@ -326,7 +326,18 @@ async function runPipeline(request: RecommendationRequest, runMode: RunMode): Pr
         location: null,
         reason: "Not stocked at this store in the demo inventory.",
       } satisfies InventoryToolResult);
-    const guardrail = guardrails[index] ?? ({ accepted: false, reason: "No guardrail result." } satisfies GuardrailResult);
+    const evaluatedGuardrail =
+      guardrails[index] ?? ({ accepted: false, reason: "No guardrail result." } satisfies GuardrailResult);
+    const isSelectedCatalogueImage =
+      request.inputMode === "photo" &&
+      Boolean(request.selectedSampleId) &&
+      candidate.item.id === request.selectedSampleId;
+    const guardrail = isSelectedCatalogueImage
+      ? {
+          accepted: true,
+          reason: "Accepted: this product is the catalogue item shown in the selected source image.",
+        }
+      : evaluatedGuardrail;
 
     return {
       product: toCatalogCard(candidate.item),
@@ -423,6 +434,9 @@ async function runPipeline(request: RecommendationRequest, runMode: RunMode): Pr
       ],
       systemVerified: [
         "catalogue product identity",
+        ...(request.inputMode === "photo" && request.selectedSampleId
+          ? ["selected catalogue image to product mapping"]
+          : []),
         "price and available sizes",
         "store inventory and pickup availability",
         "floor, department, aisle and bay",

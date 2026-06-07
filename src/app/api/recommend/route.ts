@@ -19,12 +19,15 @@ export async function POST(request: Request) {
     };
     validateImageDataUrl(body.imageDataUrl);
 
+    const inputMode = body.inputMode === "photo" ? "photo" : "text";
     const result = await runRecommendationPipeline({
       mode: body.mode === "live" ? "live" : "demo",
-      inputMode: body.inputMode === "photo" ? "photo" : "text",
+      inputMode,
       query:
-        body.query ||
-        "I need a navy outfit for an outdoor wedding next weekend, men's, size 42, under $400.",
+        inputMode === "photo"
+          ? body.query?.trim() ?? ""
+          : body.query?.trim() ||
+            "I need a navy outfit for an outdoor wedding next weekend, men's, size 42, under $400.",
       selectedSampleId: body.selectedSampleId,
       imageDataUrl: body.imageDataUrl,
       workflowId: body.workflowId,

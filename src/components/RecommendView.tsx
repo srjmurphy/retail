@@ -352,25 +352,29 @@ export function RecommendView({
   const [loading, setLoading] = useState(false);
   const [activeStep, setActiveStep] = useState(0);
   const [uploadedImageDataUrl, setUploadedImageDataUrl] = useState<string>("");
+  const [photoContext, setPhotoContext] = useState("");
   const [error, setError] = useState<string | null>(null);
 
   async function submit({
     queryOverride,
     workflowId,
+    inputModeOverride,
   }: {
     queryOverride?: string;
     workflowId?: RecommendationWorkflowId;
+    inputModeOverride?: InputMode;
   } = {}) {
     setError(null);
     setLoading(true);
     setActiveStep(0);
 
     try {
-      const requestQuery = queryOverride ?? query;
+      const requestInputMode = inputModeOverride ?? inputMode;
+      const requestQuery = queryOverride ?? (requestInputMode === "photo" ? photoContext : query);
       let imageDataUrl = uploadedImageDataUrl;
       const sample = sampleImages.find((item) => item.id === selectedSampleId);
 
-      if (mode === "live" && inputMode === "photo" && !imageDataUrl && sample) {
+      if (mode === "live" && requestInputMode === "photo" && !imageDataUrl && sample) {
         imageDataUrl = await pathToDataUrl(sample.path);
       }
 
@@ -381,7 +385,7 @@ export function RecommendView({
         },
         body: JSON.stringify({
           mode,
-          inputMode,
+          inputMode: requestInputMode,
           query: requestQuery,
           selectedSampleId,
           imageDataUrl,
@@ -506,6 +510,19 @@ export function RecommendView({
             {uploadedImageDataUrl ? (
               <img src={uploadedImageDataUrl} alt="Uploaded style input" className="h-36 rounded-md object-contain" />
             ) : null}
+            <div>
+              <label htmlFor="photo-context" className="text-sm font-semibold text-neutral-900">
+                Optional shopping context
+              </label>
+              <textarea
+                id="photo-context"
+                value={photoContext}
+                onChange={(event) => setPhotoContext(event.target.value)}
+                rows={2}
+                placeholder="For example: similar look for a work event, women's size 10, under $300."
+                className="mt-2 w-full resize-none rounded-md border border-neutral-300 bg-neutral-50 px-3 py-2.5 text-sm leading-5 text-neutral-950 outline-none transition focus:border-neutral-950 focus:bg-white"
+              />
+            </div>
           </div>
         )}
 
@@ -560,7 +577,11 @@ export function RecommendView({
                       onClick={() => {
                         setInputMode("text");
                         setQuery(workflow.query);
-                        void submit({ queryOverride: workflow.query, workflowId: workflow.id });
+                        void submit({
+                          queryOverride: workflow.query,
+                          workflowId: workflow.id,
+                          inputModeOverride: "text",
+                        });
                       }}
                       className={`inline-flex items-center gap-2 rounded-md px-3 py-2 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-60 ${
                         active

@@ -246,7 +246,9 @@ export async function analyzeInputLive({
         {
           role: "system",
           content:
-            "You extract structured retail shopping intent. Do not invent inventory, price, floor, aisle, bay, or stock facts.",
+            inputMode === "photo"
+              ? "You extract structured retail shopping intent from a clothing image and optional customer context. Infer only visible garment types, colours and style attributes. Never infer an event from appearance alone. When context does not specify occasion, use 'style inspiration'; when it does not specify size, use 'Any'; when it does not specify budget, use null; when it does not specify urgency, use 'not specified'. Do not invent inventory, price, floor, aisle, bay, or stock facts."
+              : "You extract structured retail shopping intent. Do not invent inventory, price, floor, aisle, bay, or stock facts.",
         },
         {
           role: "user",
@@ -255,7 +257,9 @@ export async function analyzeInputLive({
               ? [
                   {
                     type: "text",
-                    text: `${schemaInstruction}\nCustomer context: ${query || "Analyze this clothing image."}`,
+                    text: `${schemaInstruction}\nCustomer context: ${
+                      query || "No additional context. Describe the visible clothing as style inspiration only."
+                    }`,
                   },
                   {
                     type: "image_url",
