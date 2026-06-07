@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { runRecommendationPipeline } from "@/lib/recommend/pipeline";
-import type { InputMode, RunMode } from "@/types/demo";
+import type { InputMode, RecommendationWorkflowId, RunMode } from "@/types/demo";
 
 export const runtime = "nodejs";
 
@@ -12,6 +12,7 @@ export async function POST(request: Request) {
       query?: string;
       selectedSampleId?: string;
       imageDataUrl?: string;
+      workflowId?: RecommendationWorkflowId;
     };
 
     const result = await runRecommendationPipeline({
@@ -22,6 +23,7 @@ export async function POST(request: Request) {
         "I need a navy outfit for an outdoor wedding next weekend, men's, size 42, under $400.",
       selectedSampleId: body.selectedSampleId,
       imageDataUrl: body.imageDataUrl,
+      workflowId: body.workflowId,
     });
 
     return NextResponse.json(result);

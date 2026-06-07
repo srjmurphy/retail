@@ -1,6 +1,7 @@
 import type { StoreLocationRecord } from "@/types/demo";
+import { RETAIL_STORES } from "./stores";
 
-export const STORE_LOCATIONS: StoreLocationRecord[] = [
+const OAK_STREET_LOCATIONS: StoreLocationRecord[] = [
   {
     productId: "27152",
     storeId: "oak-street",
@@ -325,3 +326,213 @@ export const STORE_LOCATIONS: StoreLocationRecord[] = [
     ],
   },
 ];
+
+type LocationBlueprint = Omit<StoreLocationRecord, "productId" | "storeId" | "bay" | "routeSteps"> & {
+  fittingRoom: string;
+};
+
+const LOCATION_BLUEPRINTS: Record<string, LocationBlueprint> = {
+  "27152": {
+    floor: "Floor 2",
+    department: "Menswear",
+    zone: "Occasionwear",
+    aisle: "Aisle 12",
+    landmark: "blue formal shirt rail near the tailoring edit",
+    associateNote: "Pair with navy trousers and brown shoes for wedding or interview requests.",
+    fittingRoom: "Fitting Room 3",
+  },
+  "18197": {
+    floor: "Floor 2",
+    department: "Menswear",
+    zone: "Tailoring",
+    aisle: "Aisle 13",
+    landmark: "navy trouser wall beside alterations desk",
+    associateNote: "Check navy trouser sizes before offering brown tailored substitutes.",
+    fittingRoom: "Fitting Room 3",
+  },
+  "14713": {
+    floor: "Floor 2",
+    department: "Menswear",
+    zone: "Tailoring",
+    aisle: "Aisle 13",
+    landmark: "brown tailored trouser rail beside navy separates",
+    associateNote: "Good neutral trouser for outdoor wedding and interview looks.",
+    fittingRoom: "Fitting Room 3",
+  },
+  "45595": {
+    floor: "Floor 1",
+    department: "Men's Shoes",
+    zone: "Formal Footwear",
+    aisle: "Aisle 7",
+    landmark: "brown leather display below occasionwear signage",
+    associateNote: "Bring shoe horn and weather-protect spray for outdoor events.",
+    fittingRoom: "Fitting Room 3",
+  },
+  "49696": {
+    floor: "Floor 2",
+    department: "Menswear",
+    zone: "Accessories",
+    aisle: "Aisle 12",
+    landmark: "tie wall beside the occasionwear rail",
+    associateNote: "Use this as the final accent for navy wedding and interview looks.",
+    fittingRoom: "Fitting Room 3",
+  },
+  "16035": {
+    floor: "Floor 2",
+    department: "Menswear",
+    zone: "Shirting",
+    aisle: "Aisle 10",
+    landmark: "white shirt wall beside tailoring desk",
+    associateNote: "Good substitute when blue formal shirting is low.",
+    fittingRoom: "Fitting Room 2",
+  },
+  "38974": {
+    floor: "Floor 2",
+    department: "Menswear",
+    zone: "Modern Formal",
+    aisle: "Aisle 11",
+    landmark: "black check rail under interview capsule signage",
+    associateNote: "Use for smart-casual interview requests with black shoe substitutes.",
+    fittingRoom: "Fitting Room 2",
+  },
+  "46216": {
+    floor: "Floor 3",
+    department: "Womenswear",
+    zone: "Workwear",
+    aisle: "Aisle 14",
+    landmark: "pink interview dress rail beside soft tailoring",
+    associateNote: "Use as the nearby-store cross-sell for pink interview requests in size 6.",
+    fittingRoom: "Fitting Room 4",
+  },
+  "48481": {
+    floor: "Floor 3",
+    department: "Womenswear",
+    zone: "Occasion Dresses",
+    aisle: "Aisle 18",
+    landmark: "black dress rail beside the mirrored styling table",
+    associateNote: "Prioritise work gala and evening event demand.",
+    fittingRoom: "Fitting Room 5",
+  },
+  "59982": {
+    floor: "Floor 3",
+    department: "Womenswear",
+    zone: "Occasion Dresses",
+    aisle: "Aisle 18",
+    landmark: "cream-detail rail next to styling table",
+    associateNote: "Keep beside black occasion dresses for gala substitutions.",
+    fittingRoom: "Fitting Room 5",
+  },
+  "57993": {
+    floor: "Floor 3",
+    department: "Womenswear",
+    zone: "Occasion Dresses",
+    aisle: "Aisle 17",
+    landmark: "neutral event rail beside graduation edits",
+    associateNote: "Works as a softer option for graduation and outdoor ceremonies.",
+    fittingRoom: "Fitting Room 5",
+  },
+  "59973": {
+    floor: "Floor 3",
+    department: "Womenswear",
+    zone: "Occasion Dresses",
+    aisle: "Aisle 18",
+    landmark: "navy dress rail facing the escalator",
+    associateNote: "Offer black dress substitute if preferred sizes are low.",
+    fittingRoom: "Fitting Room 5",
+  },
+  "34586": {
+    floor: "Floor 3",
+    department: "Womenswear",
+    zone: "Party Edit",
+    aisle: "Aisle 19",
+    landmark: "holiday-party rail near personal styling desk",
+    associateNote: "Use for Friday holiday-party demand; pair with red heels.",
+    fittingRoom: "Fitting Room 6",
+  },
+  "47548": {
+    floor: "Floor 1",
+    department: "Women's Shoes",
+    zone: "Occasion Footwear",
+    aisle: "Aisle 6",
+    landmark: "red heel plinth opposite handbags fixture",
+    associateNote: "Best accessory substitute for holiday-party outfits.",
+    fittingRoom: "Fitting Room 6",
+  },
+  "10616": {
+    floor: "Floor 1",
+    department: "Women's Shoes",
+    zone: "Occasion Footwear",
+    aisle: "Aisle 6",
+    landmark: "gold comfort footwear display under graduation signage",
+    associateNote: "Comfort-first recommendation for ceremonies with long standing time.",
+    fittingRoom: "Fitting Room 6",
+  },
+  "32379": {
+    floor: "Floor 3",
+    department: "Womenswear",
+    zone: "Ceremony Edit",
+    aisle: "Aisle 17",
+    landmark: "light dress rail beside graduation capsule",
+    associateNote: "Good ceremony option; call out that bag availability is limited.",
+    fittingRoom: "Fitting Room 5",
+  },
+  "57139": {
+    floor: "Floor 3",
+    department: "Womenswear",
+    zone: "Workwear",
+    aisle: "Aisle 15",
+    landmark: "tailored trouser wall beside suiting capsule",
+    associateNote: "Pair with soft-colour dresses or blazers for interview requests.",
+    fittingRoom: "Fitting Room 4",
+  },
+  "27917": {
+    floor: "Floor 3",
+    department: "Womenswear",
+    zone: "Workwear",
+    aisle: "Aisle 15",
+    landmark: "brown trouser rail near suiting capsule",
+    associateNote: "Offer as work-event substitute when black trouser sizes are constrained.",
+    fittingRoom: "Fitting Room 4",
+  },
+};
+
+const NEARBY_STORE_IDS = ["river-north", "lincoln-park"];
+
+function buildRouteSteps(storeId: string, location: StoreLocationRecord, fittingRoom: string) {
+  const store = RETAIL_STORES.find((profile) => profile.storeId === storeId);
+  const entry = store?.entryInstruction ?? "Enter through the main entrance";
+
+  return [
+    entry,
+    `Take the escalator to ${location.floor}`,
+    `Walk into ${location.department}`,
+    `Continue to ${location.zone}`,
+    `Go to ${location.aisle}, ${location.bay}`,
+    `Associate can prepare ${fittingRoom}`,
+  ];
+}
+
+const GENERATED_NETWORK_LOCATIONS: StoreLocationRecord[] = NEARBY_STORE_IDS.flatMap((storeId, storeIndex) =>
+  Object.entries(LOCATION_BLUEPRINTS).map(([productId, blueprint], productIndex) => {
+    const bay = `Bay ${((productIndex + storeIndex) % 7) + 1}`;
+    const location: StoreLocationRecord = {
+      productId,
+      storeId,
+      floor: blueprint.floor,
+      department: blueprint.department,
+      zone: blueprint.zone,
+      aisle: blueprint.aisle,
+      bay,
+      landmark: blueprint.landmark,
+      associateNote: blueprint.associateNote,
+      routeSteps: [],
+    };
+
+    return {
+      ...location,
+      routeSteps: buildRouteSteps(storeId, location, blueprint.fittingRoom),
+    };
+  }),
+);
+
+export const STORE_LOCATIONS: StoreLocationRecord[] = [...OAK_STREET_LOCATIONS, ...GENERATED_NETWORK_LOCATIONS];

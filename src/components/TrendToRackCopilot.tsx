@@ -1,8 +1,18 @@
 "use client";
 
-import { ChevronDown, LineChart, Loader2, SlidersHorizontal, WandSparkles } from "lucide-react";
+import {
+  ArrowRight,
+  BarChart3,
+  ChevronDown,
+  CircleDollarSign,
+  Loader2,
+  SearchX,
+  SlidersHorizontal,
+  Sparkles,
+  WandSparkles,
+} from "lucide-react";
 import { useState } from "react";
-import type { DemandRecord, RunMode, TrendToRackResult } from "@/types/demo";
+import type { BuySignal, DemandRecord, RunMode, TrendToRackResult } from "@/types/demo";
 import { LazyPipelineOverlay, type PipelineStep } from "./LazyPipelineOverlay";
 
 const trendSteps: PipelineStep[] = [
@@ -44,6 +54,17 @@ const trendSteps: PipelineStep[] = [
   },
 ];
 
+type IntentSummary = {
+  totalSignals: number;
+  fulfilledSearches: number;
+  missedSearches: number;
+  missedRevenue: number;
+};
+
+type ActionSummary = {
+  allSignals: BuySignal[];
+};
+
 function wait(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -57,28 +78,159 @@ async function playPipeline(setActiveStep: (step: number) => void) {
   await wait(220);
 }
 
-function SectionList({ title, items }: { title: string; items: string[] }) {
+function traceOutput<T>(result: TrendToRackResult, name: string) {
+  return result.trace.find((trace) => trace.name === name)?.output as T | undefined;
+}
+
+function dashboardData(result: TrendToRackResult) {
+  const intents = traceOutput<IntentSummary>(result, "analyze_customer_intents");
+  const actions = traceOutput<ActionSummary>(result, "recommend_business_actions");
+  const allSignals = actions?.allSignals ?? result.buySignals;
+  const chartSignals = [...allSignals]
+    .filter((signal) => signal.evidenceCount > 0)
+    .sort(
+      (left, right) =>
+        right.estimatedMissedRevenue - left.estimatedMissedRevenue ||
+        right.confidenceScore - left.confidenceScore,
+    )
+    .slice(0, 3);
+
+  return {
+    totalSignals: intents?.totalSignals ?? 0,
+    fulfilledSearches: intents?.fulfilledSearches ?? 0,
+    missedSearches: intents?.missedSearches ?? 0,
+    missedRevenue:
+      intents?.missedRevenue ??
+      chartSignals.reduce((sum, signal) => sum + signal.estimatedMissedRevenue, 0),
+    chartSignals,
+  };
+}
+
+function OpportunityChart({ signals }: { signals: BuySignal[] }) {
+  const maxRevenue = Math.max(...signals.map((signal) => signal.estimatedMissedRevenue), 1);
+
   return (
     <section className="rounded-lg border border-neutral-200 bg-white p-5 shadow-sm">
-      <h3 className="text-sm font-semibold uppercase tracking-[0.16em] text-neutral-500">{title}</h3>
-      <ul className="mt-4 space-y-2 text-sm leading-6 text-neutral-700">
-        {items.map((item) => (
-          <li key={item} className="rounded-md bg-neutral-50 px-3 py-2">
-            {item}
-          </li>
-        ))}
-      </ul>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-neutral-500">Opportunity chart</p>
+          <h2 className="mt-1 text-lg font-semibold text-neutral-950">Estimated missed revenue</h2>
+        </div>
+        <BarChart3 className="h-5 w-5 text-neutral-500" aria-hidden="true" />
+      </div>
+
+      {signals.length ? (
+        <div className="mt-5 space-y-5">
+          {signals.map((signal) => {
+            const width =
+              signal.estimatedMissedRevenue > 0
+                ? Math.max(8, (signal.estimatedMissedRevenue / maxRevenue) * 100)
+                : 3;
+
+            return (
+              <div key={signal.demandPattern}>
+                <div className="flex items-end justify-between gap-4">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-semibold text-neutral-900">{signal.demandPattern}</p>
+                    <p className="mt-0.5 text-xs text-neutral-500">
+                      {signal.evidenceCount} signal{signal.evidenceCount === 1 ? "" : "s"} · confidence{" "}
+                      {signal.confidenceScore}
+                    </p>
+                  </div>
+                  <p className="shrink-0 text-base font-semibold text-neutral-950">
+                    ${signal.estimatedMissedRevenue}
+                  </p>
+                </div>
+                <div className="mt-2 h-3 overflow-hidden rounded-sm bg-neutral-100">
+                  <div
+                    className="h-full rounded-sm bg-neutral-950"
+                    style={{ width: `${width}%` }}
+                    aria-label={`${signal.demandPattern}: $${signal.estimatedMissedRevenue}`}
+                  />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      ) : (
+        <p className="mt-5 rounded-md bg-neutral-50 px-3 py-3 text-sm text-neutral-600">
+          No demand signal has enough evidence to chart yet.
+        </p>
+      )}
     </section>
   );
 }
 
-function ToolTrace({ result }: { result: TrendToRackResult | null }) {
-  if (!result) return null;
+function ActionNotes({ signals, fallbackActions }: { signals: BuySignal[]; fallbackActions: string[] }) {
+  const actions = signals.length
+    ? signals.map((signal) => ({
+        title: signal.demandPattern,
+        note: signal.recommendedAction,
+      }))
+    : fallbackActions.slice(0, 3).map((note, index) => ({
+        title: `Action ${index + 1}`,
+        note,
+      }));
+
+  return (
+    <section className="rounded-lg border border-neutral-200 bg-white p-5 shadow-sm">
+      <p className="text-xs font-semibold uppercase tracking-[0.16em] text-neutral-500">Act now</p>
+      <div className="mt-3 divide-y divide-neutral-200">
+        {actions.slice(0, 3).map((action, index) => (
+          <article key={`${action.title}-${index}`} className="py-3 first:pt-0 last:pb-0">
+            <div className="flex gap-3">
+              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded bg-neutral-950 text-xs font-semibold text-white">
+                {index + 1}
+              </span>
+              <div>
+                <h3 className="text-sm font-semibold text-neutral-950">{action.title}</h3>
+                <p className="mt-1 text-xs leading-5 text-neutral-600">{action.note}</p>
+              </div>
+            </div>
+          </article>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function EvidenceDetails({ result }: { result: TrendToRackResult }) {
+  const sections = [
+    { title: "Demand", items: result.demandSignals },
+    { title: "Inventory", items: result.inventoryGaps },
+    { title: "Findability", items: result.findabilityGaps },
+    { title: "Evidence", items: result.evidencePanel },
+  ];
 
   return (
     <details className="rounded-lg border border-neutral-200 bg-white p-5 shadow-sm">
       <summary className="flex items-center justify-between gap-4 text-sm font-semibold text-neutral-950">
-        View tool-call trace
+        Supporting evidence
+        <ChevronDown className="h-4 w-4" aria-hidden="true" />
+      </summary>
+      <div className="mt-4 grid gap-4 md:grid-cols-2">
+        {sections.map((section) => (
+          <section key={section.title}>
+            <h3 className="text-xs font-semibold uppercase tracking-[0.14em] text-neutral-500">{section.title}</h3>
+            <ul className="mt-2 space-y-1 text-xs leading-5 text-neutral-600">
+              {section.items.slice(0, 3).map((item) => (
+                <li key={item} className="border-l-2 border-neutral-200 pl-2">
+                  {item}
+                </li>
+              ))}
+            </ul>
+          </section>
+        ))}
+      </div>
+    </details>
+  );
+}
+
+function ToolTrace({ result }: { result: TrendToRackResult }) {
+  return (
+    <details className="rounded-lg border border-neutral-200 bg-white p-5 shadow-sm">
+      <summary className="flex items-center justify-between gap-4 text-sm font-semibold text-neutral-950">
+        Technical trace
         <ChevronDown className="h-4 w-4" aria-hidden="true" />
       </summary>
       <div className="mt-4 space-y-3">
@@ -151,8 +303,14 @@ export function TrendToRackCopilot({
     }
   }
 
+  const dashboard = result ? dashboardData(result) : null;
+  const recommendedMove =
+    dashboard?.chartSignals[0]?.recommendedAction ??
+    result?.nextMove.split(/(?<=[.!?])\s/)[0] ??
+    "";
+
   return (
-    <section className="space-y-6">
+    <section className="space-y-5">
       <LazyPipelineOverlay
         visible={loading}
         title="Running Trend-to-Rack analysis"
@@ -160,153 +318,122 @@ export function TrendToRackCopilot({
         activeStep={activeStep}
       />
 
-      <div className="grid gap-6 lg:grid-cols-[0.95fr_1.05fr]">
-        <div className="rounded-lg border border-neutral-200 bg-white p-5 shadow-sm">
-          <div className="flex flex-wrap items-start justify-between gap-4">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-neutral-500">Optimise</p>
-              <h1 className="mt-1 text-2xl font-semibold text-neutral-950">Trend-to-Rack Copilot</h1>
-            </div>
-            <LineChart className="h-6 w-6 text-neutral-500" aria-hidden="true" />
+      <section className="rounded-lg border border-neutral-200 bg-white p-5 shadow-sm">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-neutral-500">Optimise</p>
+            <h1 className="mt-1 text-2xl font-semibold text-neutral-950">Trend-to-Rack Copilot</h1>
+            <p className="mt-1 text-sm text-neutral-600">Turn search misses into one weekend action plan.</p>
           </div>
+          <button
+            type="button"
+            onClick={runCopilot}
+            disabled={loading}
+            className="inline-flex items-center gap-2 rounded-md bg-neutral-950 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-neutral-800 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {loading ? (
+              <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+            ) : (
+              <WandSparkles className="h-4 w-4" aria-hidden="true" />
+            )}
+            Generate action plan
+          </button>
+        </div>
 
-          <label htmlFor="trend-prompt" className="mt-5 block text-sm font-semibold text-neutral-900">
-            Core question
-          </label>
-          <textarea
-            id="trend-prompt"
-            value={prompt}
-            onChange={(event) => setPrompt(event.target.value)}
-            rows={4}
-            className="mt-2 w-full resize-none rounded-md border border-neutral-300 bg-neutral-50 px-3 py-3 text-sm leading-6 text-neutral-950 outline-none transition focus:border-neutral-950 focus:bg-white"
-          />
-
-          <div className="mt-5 rounded-lg border border-neutral-200 bg-neutral-50 p-4">
-            <div className="flex items-center justify-between gap-4">
-              <div className="flex items-center gap-2">
-                <SlidersHorizontal className="h-4 w-4 text-neutral-500" aria-hidden="true" />
-                <p className="text-sm font-semibold text-neutral-950">Confidence / volume threshold</p>
-              </div>
-              <p className="rounded bg-neutral-950 px-2.5 py-1 text-sm font-semibold text-white">{threshold}</p>
+        <div className="mt-5 grid gap-4 lg:grid-cols-[minmax(0,1fr)_280px]">
+          <div>
+            <label htmlFor="trend-prompt" className="text-xs font-semibold uppercase tracking-[0.14em] text-neutral-500">
+              Executive question
+            </label>
+            <input
+              id="trend-prompt"
+              value={prompt}
+              onChange={(event) => setPrompt(event.target.value)}
+              className="mt-2 w-full rounded-md border border-neutral-300 bg-neutral-50 px-3 py-2.5 text-sm text-neutral-950 outline-none transition focus:border-neutral-950 focus:bg-white"
+            />
+          </div>
+          <div>
+            <div className="flex items-center justify-between gap-3">
+              <label
+                htmlFor="trend-threshold"
+                className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.14em] text-neutral-500"
+              >
+                <SlidersHorizontal className="h-3.5 w-3.5" aria-hidden="true" />
+                Evidence threshold
+              </label>
+              <span className="text-sm font-semibold text-neutral-950">{threshold}</span>
             </div>
             <input
+              id="trend-threshold"
               type="range"
               min="35"
               max="95"
               step="5"
               value={threshold}
               onChange={(event) => setThreshold(Number(event.target.value))}
-              className="mt-4 h-2 w-full accent-neutral-950"
+              className="mt-3 h-2 w-full accent-neutral-950"
             />
-            <p className="mt-2 text-xs leading-5 text-neutral-600">
-              One weird search should not trigger merchandising action.
-            </p>
-          </div>
-
-          <div className="mt-5 grid grid-cols-3 gap-3 text-center">
-            <div className="rounded-md bg-neutral-50 p-3">
-              <p className="text-2xl font-semibold text-neutral-950">{demandRecords.length}</p>
-              <p className="text-xs font-medium text-neutral-500">Live searches</p>
-            </div>
-            <div className="rounded-md bg-neutral-50 p-3">
-              <p className="text-2xl font-semibold text-neutral-950">
-                {demandRecords.filter((record) => record.foundInStock).length}
-              </p>
-              <p className="text-xs font-medium text-neutral-500">Fulfilled</p>
-            </div>
-            <div className="rounded-md bg-neutral-50 p-3">
-              <p className="text-2xl font-semibold text-neutral-950">
-                {demandRecords.filter((record) => !record.foundInStock || record.missedReason).length}
-              </p>
-              <p className="text-xs font-medium text-neutral-500">Miss / partial</p>
-            </div>
-          </div>
-
-          <div className="mt-5 flex flex-wrap items-center gap-3">
-            <button
-              type="button"
-              onClick={runCopilot}
-              disabled={loading}
-              className="inline-flex items-center gap-2 rounded-md bg-neutral-950 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-neutral-800 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {loading ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <WandSparkles className="h-4 w-4" aria-hidden="true" />}
-              Run copilot
-            </button>
-            {error ? <p className="text-sm font-medium text-red-700">{error}</p> : null}
           </div>
         </div>
+        {error ? <p className="mt-3 text-sm font-medium text-red-700">{error}</p> : null}
+      </section>
 
-        <div className="rounded-lg border border-neutral-200 bg-white p-5 shadow-sm">
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-neutral-500">Executive action brief</p>
-          {result ? (
-            <>
-              <h2 className="mt-2 text-xl font-semibold text-neutral-950">{result.nextMove}</h2>
-              <p className="mt-3 text-sm leading-6 text-neutral-700">{result.executiveBrief}</p>
-            </>
-          ) : (
-            <>
-              <h2 className="mt-2 text-xl font-semibold text-neutral-950">Demand signals are ready</h2>
-              <p className="mt-3 text-sm leading-6 text-neutral-600">
-                Run the copilot after Recommend searches to turn hits, misses and findability issues into merchandising
-                actions.
-              </p>
-            </>
-          )}
-        </div>
-      </div>
-
-      {result ? (
+      {result && dashboard ? (
         <>
-          <section className="rounded-lg border border-neutral-200 bg-white p-5 shadow-sm">
-            <h2 className="text-sm font-semibold uppercase tracking-[0.16em] text-neutral-500">
-              Recommended Buy Signals
-            </h2>
-            {result.buySignals.length ? (
-              <div className="mt-4 grid gap-4 lg:grid-cols-2">
-                {result.buySignals.map((signal) => (
-                  <article key={signal.demandPattern} className="rounded-lg border border-neutral-200 bg-neutral-50 p-4">
-                    <div className="flex flex-wrap items-start justify-between gap-3">
-                      <div>
-                        <h3 className="font-semibold text-neutral-950">{signal.demandPattern}</h3>
-                        <p className="mt-1 text-sm text-neutral-600">{signal.affectedStoreCategorySize}</p>
-                      </div>
-                      <span className="rounded bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">
-                        {signal.confidenceLevel} {signal.confidenceScore}
-                      </span>
-                    </div>
-                    <dl className="mt-4 grid grid-cols-2 gap-3 text-sm">
-                      <div>
-                        <dt className="font-semibold text-neutral-950">Evidence count</dt>
-                        <dd className="text-neutral-600">{signal.evidenceCount}</dd>
-                      </div>
-                      <div>
-                        <dt className="font-semibold text-neutral-950">Estimated missed revenue</dt>
-                        <dd className="text-neutral-600">${signal.estimatedMissedRevenue}</dd>
-                      </div>
-                    </dl>
-                    <p className="mt-3 text-sm leading-6 text-neutral-700">{signal.recommendedAction}</p>
-                  </article>
-                ))}
+          <section className="rounded-lg border border-neutral-950 bg-neutral-950 p-5 text-white shadow-sm">
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div className="max-w-4xl">
+                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-neutral-400">Recommended move</p>
+                <h2 className="mt-2 text-xl font-semibold leading-7">{recommendedMove}</h2>
               </div>
-            ) : (
-              <p className="mt-4 rounded-md bg-neutral-50 px-3 py-2 text-sm text-neutral-600">
-                No demand gap has crossed the current threshold.
-              </p>
-            )}
+              <ArrowRight className="h-6 w-6 text-neutral-400" aria-hidden="true" />
+            </div>
           </section>
 
-          <div className="grid gap-6 lg:grid-cols-2">
-            <SectionList title="Demand signal" items={result.demandSignals} />
-            <SectionList title="Inventory gap" items={result.inventoryGaps} />
-            <SectionList title="Store findability gap" items={result.findabilityGaps} />
-            <SectionList title="Recommended actions" items={result.recommendedActions} />
-            <SectionList title="Evidence panel" items={result.evidencePanel} />
-            <SectionList title="Business impact" items={result.businessImpact} />
+          <section className="grid grid-cols-3 divide-x divide-neutral-200 rounded-lg border border-neutral-200 bg-white shadow-sm">
+            <div className="p-4 text-center">
+              <Sparkles className="mx-auto h-4 w-4 text-neutral-500" aria-hidden="true" />
+              <p className="mt-2 text-2xl font-semibold text-neutral-950">{dashboard.totalSignals}</p>
+              <p className="mt-1 text-xs font-medium text-neutral-500">Demand signals</p>
+            </div>
+            <div className="p-4 text-center">
+              <SearchX className="mx-auto h-4 w-4 text-neutral-500" aria-hidden="true" />
+              <p className="mt-2 text-2xl font-semibold text-neutral-950">{dashboard.missedSearches}</p>
+              <p className="mt-1 text-xs font-medium text-neutral-500">Miss / partial</p>
+            </div>
+            <div className="p-4 text-center">
+              <CircleDollarSign className="mx-auto h-4 w-4 text-neutral-500" aria-hidden="true" />
+              <p className="mt-2 text-2xl font-semibold text-neutral-950">${dashboard.missedRevenue}</p>
+              <p className="mt-1 text-xs font-medium text-neutral-500">Revenue at risk</p>
+            </div>
+          </section>
+
+          <div className="grid gap-5 lg:grid-cols-[minmax(0,1.35fr)_minmax(300px,0.65fr)]">
+            <OpportunityChart signals={dashboard.chartSignals} />
+            <ActionNotes signals={dashboard.chartSignals} fallbackActions={result.recommendedActions} />
           </div>
 
-          <ToolTrace result={result} />
+          <div className="grid gap-3 lg:grid-cols-2">
+            <EvidenceDetails result={result} />
+            <ToolTrace result={result} />
+          </div>
         </>
-      ) : null}
+      ) : (
+        <section className="grid gap-4 md:grid-cols-3">
+          {[
+            ["1", "Run three customer workflows"],
+            ["2", "Open Optimise"],
+            ["3", "Generate the action plan"],
+          ].map(([step, label]) => (
+            <div key={step} className="rounded-lg border border-neutral-200 bg-white p-4 shadow-sm">
+              <span className="inline-flex h-7 w-7 items-center justify-center rounded bg-neutral-950 text-xs font-semibold text-white">
+                {step}
+              </span>
+              <p className="mt-3 text-sm font-semibold text-neutral-900">{label}</p>
+            </div>
+          ))}
+        </section>
+      )}
     </section>
   );
 }

@@ -76,8 +76,10 @@ function extractSize(query: string) {
 }
 
 function extractGender(query: string) {
-  if (/\bmen|men's|male\b/i.test(query)) return "Men";
-  if (/\bwomen|women's|female|dress|gala|plus[-\s]?size|formalwear\b/i.test(query)) return "Women";
+  if (/\bwomen(?:['’]s)?\b|\bwoman(?:['’]s)?\b|\bfemale\b|\bdress\b|\bgala\b|plus[-\s]?size|formalwear/i.test(query)) {
+    return "Women";
+  }
+  if (/\bmen(?:['’]s)?\b|\bman(?:['’]s)?\b|\bmale\b/i.test(query)) return "Men";
   return "Any";
 }
 
@@ -117,7 +119,7 @@ function extractItems(query: string, occasion: string) {
 }
 
 function extractColours(query: string) {
-  const colours = ["navy", "blue", "black", "white", "brown", "gold", "beige", "green", "red", "cream"];
+  const colours = ["navy", "blue", "black", "white", "brown", "gold", "beige", "green", "red", "cream", "pink"];
   return colours.filter((colour) => new RegExp(`\\b${colour}\\b`, "i").test(query));
 }
 

@@ -2,6 +2,7 @@
 
 import { ChevronDown, MapPin, PackageCheck } from "lucide-react";
 import type { RecommendationCard } from "@/types/demo";
+import { inventoryStatusLabel } from "@/lib/inventory/labels";
 
 function ProductImage({ recommendation }: { recommendation: RecommendationCard }) {
   if (recommendation.product.imagePath) {
@@ -28,7 +29,15 @@ export function ProductCard({
   recommendation: RecommendationCard;
   onLocate: (recommendation: RecommendationCard) => void;
 }) {
-  const inStock = recommendation.inventoryStatus === "in_stock" && recommendation.location;
+  const locatable =
+    (recommendation.inventoryStatus === "in_stock" || recommendation.inventoryStatus === "nearby_store") &&
+    recommendation.location;
+  const stockTone =
+    recommendation.inventoryStatus === "in_stock"
+      ? "bg-emerald-50 text-emerald-700"
+      : recommendation.inventoryStatus === "nearby_store"
+        ? "bg-blue-50 text-blue-700"
+        : "bg-amber-50 text-amber-800";
 
   return (
     <article className="rounded-lg border border-neutral-200 bg-white p-4 shadow-sm">
@@ -50,10 +59,15 @@ export function ProductCard({
       <p className="mt-3 text-sm leading-6 text-neutral-600">{recommendation.whyThisMatches}</p>
 
       <div className="mt-4 flex flex-wrap gap-2 text-xs font-medium">
-        <span className="inline-flex items-center gap-1 rounded bg-emerald-50 px-2.5 py-1 text-emerald-700">
+        <span className={`inline-flex items-center gap-1 rounded px-2.5 py-1 ${stockTone}`}>
           <PackageCheck className="h-3.5 w-3.5" aria-hidden="true" />
-          {inStock ? "In stock" : recommendation.inventoryStatus.replaceAll("_", " ")}
+          {inventoryStatusLabel(recommendation.inventoryStatus)}
         </span>
+        {recommendation.inventory ? (
+          <span className="rounded bg-neutral-100 px-2.5 py-1 text-neutral-700">
+            {recommendation.inventory.storeName}
+          </span>
+        ) : null}
         <span className="rounded bg-blue-50 px-2.5 py-1 text-blue-700">
           Sizes {recommendation.product.available_sizes.slice(0, 5).join(", ")}
         </span>
@@ -65,18 +79,18 @@ export function ProductCard({
       </div>
 
       <div className="mt-4 flex flex-wrap items-center gap-2">
-        {inStock ? (
+        {locatable ? (
           <button
             type="button"
             onClick={() => onLocate(recommendation)}
             className="inline-flex items-center gap-2 rounded-md bg-neutral-950 px-3 py-2 text-sm font-semibold text-white transition hover:bg-neutral-800"
           >
             <MapPin className="h-4 w-4" aria-hidden="true" />
-            Locate in store
+            {recommendation.inventoryStatus === "nearby_store" ? "Locate nearby store" : "Locate in store"}
           </button>
         ) : (
           <span className="rounded-md border border-neutral-200 px-3 py-2 text-sm font-medium text-neutral-600">
-            {recommendation.inventoryStatus === "online_only" ? "Available online only" : "Not ranged at this store"}
+            {inventoryStatusLabel(recommendation.inventoryStatus)}
           </span>
         )}
       </div>
@@ -97,7 +111,7 @@ export function ProductCard({
           </div>
           <div>
             <dt className="font-semibold text-neutral-900">Inventory status</dt>
-            <dd>{recommendation.inventoryStatus.replaceAll("_", " ")}</dd>
+            <dd>{inventoryStatusLabel(recommendation.inventoryStatus)}</dd>
           </div>
           <div>
             <dt className="font-semibold text-neutral-900">Inventory health</dt>

@@ -88,6 +88,15 @@ const specificEnrichment: Record<string, Enrichment> = {
     commercial_priority_score: 89,
     storeAvailability: "Oak Street flagship",
   },
+  "46216": {
+    occasionTags: ["interview", "work event", "work gala"],
+    styleTags: ["pink dress", "soft colour", "women workwear", "cross-sell alternative"],
+    price: 182,
+    available_sizes: ["6", "8", "10"],
+    inventory_health_score: 58,
+    commercial_priority_score: 64,
+    storeAvailability: "Cookbook catalog",
+  },
   "59982": {
     occasionTags: ["work gala", "holiday party"],
     styleTags: ["black dress", "cream detail", "evening", "occasion dress"],

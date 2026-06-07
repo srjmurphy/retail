@@ -2,6 +2,7 @@
 
 import { ArrowLeft, Bell, CheckCircle2, MapPin, Send } from "lucide-react";
 import type { AppTab, RecommendationCard } from "@/types/demo";
+import { inventoryStatusLabel } from "@/lib/inventory/labels";
 
 function ProductImage({ selected }: { selected: RecommendationCard }) {
   if (selected.product.imagePath) {
@@ -51,7 +52,7 @@ export function InStoreRouteView({
         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-neutral-500">Locate</p>
         <h1 className="mt-2 text-2xl font-semibold text-neutral-950">{selected.product.productDisplayName}</h1>
         <p className="mt-3 rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-900">
-          {selected.inventoryStatus === "online_only" ? "Available online only" : "Not ranged at this store"}
+          {inventoryStatusLabel(selected.inventoryStatus)}
         </p>
         <button
           type="button"
@@ -66,6 +67,7 @@ export function InStoreRouteView({
   }
 
   const route = selected.location;
+  const storeName = selected.inventory.storeName;
   const fittingRoom = route.routeSteps[5]?.match(/Fitting Room \d+/)?.[0] ?? "Fitting Room";
   const routeCards = [
     {
@@ -119,7 +121,10 @@ export function InStoreRouteView({
 
         <div className="mt-5 grid gap-3 text-sm">
           <div className="rounded-md bg-emerald-50 px-3 py-2 font-medium text-emerald-700">
-            {selected.inventory.stockCount} in stock, size {selected.inventory.size}
+            {selected.inventory.stockCount} in stock, size {selected.inventory.size} at {storeName}
+          </div>
+          <div className="rounded-md bg-blue-50 px-3 py-2 font-medium text-blue-700">
+            {selected.inventory.pickupAvailability}
           </div>
           <div className="rounded-md bg-blue-50 px-3 py-2 font-medium text-blue-700">{route.floor}</div>
           <div className="rounded-md bg-purple-50 px-3 py-2 font-medium text-purple-700">
@@ -135,7 +140,7 @@ export function InStoreRouteView({
       <div className="rounded-lg border border-neutral-200 bg-white p-5 shadow-sm">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-neutral-500">RetailNext Oak Street</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-neutral-500">{storeName}</p>
             <h2 className="mt-1 text-xl font-semibold text-neutral-950">Entrance → Floor → Department → Aisle → Bay → Fitting Room</h2>
           </div>
           <MapPin className="h-6 w-6 text-neutral-500" aria-hidden="true" />
@@ -154,7 +159,8 @@ export function InStoreRouteView({
         <div className="mt-6 rounded-lg border border-neutral-200 bg-[#fbfaf7] p-4">
           <p className="text-sm font-semibold text-neutral-950">Route summary</p>
           <p className="mt-2 text-sm leading-6 text-neutral-700">
-            Take the escalator to {route.floor}, turn right into {route.department}, then go to {route.aisle}, {route.bay}. The item is on the {route.landmark}.
+            Follow the route to {route.floor}, continue into {route.department}, then go to {route.aisle}, {route.bay}.
+            The item is on the {route.landmark}.
           </p>
           <p className="mt-3 text-sm font-medium text-neutral-950">
             Available is not enough — the customer or associate still needs to find it in-store.

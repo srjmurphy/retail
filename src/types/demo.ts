@@ -2,6 +2,7 @@ export type AppTab = "recommend" | "locate" | "optimise";
 export type InputMode = "text" | "photo";
 export type RunMode = "demo" | "live";
 export type ImageSource = "cookbook_sample" | "placeholder";
+export type RecommendationWorkflowId = "happy_path" | "distributed_stock" | "unmet_demand";
 
 export type InputIntent = {
   items: string[];
@@ -74,7 +75,7 @@ export type RecommendationCard = {
   guardrail: GuardrailResult;
   inventory: InventoryRecord | null;
   location: StoreLocationRecord | null;
-  inventoryStatus: "in_stock" | "out_of_stock" | "online_only" | "not_ranged";
+  inventoryStatus: "in_stock" | "nearby_store" | "out_of_stock" | "online_only" | "not_ranged";
   whyThisMatches: string;
   rankingReason: string;
 };
@@ -133,6 +134,7 @@ export type DemandRecord = {
 
 export type RecommendResponse = {
   mode: RunMode;
+  workflowId: RecommendationWorkflowId | null;
   fallbackUsed: boolean;
   fallbackMessage: string | null;
   intent: InputIntent;

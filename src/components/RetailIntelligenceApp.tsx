@@ -8,6 +8,7 @@ import type {
   InputIntent,
   InputMode,
   RecommendationCard,
+  RecommendationWorkflowId,
   RecommendResponse,
   RunMode,
   TechnicalTrace,
@@ -58,6 +59,7 @@ export function RetailIntelligenceApp() {
   const [recommendations, setRecommendations] = useState<RecommendationCard[]>([]);
   const [partialMatches, setPartialMatches] = useState<RecommendationCard[]>([]);
   const [trace, setTrace] = useState<TechnicalTrace | null>(null);
+  const [activeWorkflowId, setActiveWorkflowId] = useState<RecommendationWorkflowId | null>(null);
   const [selectedProduct, setSelectedProduct] = useState<RecommendationCard | null>(null);
   const [demandRecords, setDemandRecords] = useState<DemandRecord[]>([]);
   const [threshold, setThreshold] = useState(65);
@@ -74,6 +76,7 @@ export function RetailIntelligenceApp() {
     setRecommendations([]);
     setPartialMatches([]);
     setTrace(null);
+    setActiveWorkflowId(null);
     setSelectedProduct(null);
     setDemandRecords([]);
     setThreshold(65);
@@ -85,6 +88,7 @@ export function RetailIntelligenceApp() {
     setRecommendations(response.recommendations);
     setPartialMatches(response.partialMatches);
     setTrace(response.trace);
+    setActiveWorkflowId(response.workflowId);
     setDemandRecords((records) => [...records, response.demandRecord]);
   }
 
@@ -166,6 +170,7 @@ export function RetailIntelligenceApp() {
               recommendations={recommendations}
               partialMatches={partialMatches}
               trace={trace}
+              activeWorkflowId={activeWorkflowId}
               onResult={handleRecommendationResult}
               onLocate={handleLocate}
               onFallback={setFallbackBanner}

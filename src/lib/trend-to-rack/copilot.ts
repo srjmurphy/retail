@@ -151,7 +151,7 @@ async function synthesizeLiveBrief(traces: TrendToolTrace[]) {
         {
           role: "system",
           content:
-            "You write executive retail action briefs grounded only in supplied tool outputs. Return JSON with executiveBrief and nextMove.",
+            "You write concise executive retail actions grounded only in supplied tool outputs. Return JSON with executiveBrief and nextMove. nextMove must be one sentence under 20 words. executiveBrief must be no more than two short sentences.",
         },
         {
           role: "user",

@@ -5,6 +5,7 @@ import type {
   InventoryRecord,
   RecommendationCard,
   RecommendResponse,
+  RecommendationWorkflowId,
   RunMode,
   StoreLocationRecord,
   TechnicalTrace,
@@ -18,6 +19,8 @@ import type { InventoryToolResult } from "@/lib/inventory/types";
 import { analyzeInputDemo, analyzeInputLive } from "./analyze";
 import { buildRetrievalQuery, retrieveMatchesDemo, retrieveMatchesLive, type RetrievedCandidate } from "@/lib/cookbook-rag/retrieval";
 import { guardrailCheckDemo, guardrailCheckLive } from "@/lib/cookbook-rag/guardrail";
+import { getCatalogItem } from "@/lib/catalog/enrichCatalog";
+import { getRecommendationWorkflow } from "./workflows";
 
 export type RecommendationRequest = {
   mode: RunMode;
@@ -25,6 +28,7 @@ export type RecommendationRequest = {
   query: string;
   selectedSampleId?: string;
   imageDataUrl?: string;
+  workflowId?: RecommendationWorkflowId;
 };
 
 function toCatalogCard(item: CatalogItem) {
@@ -42,11 +46,13 @@ function buildWhy(item: CatalogItem, status: InventoryToolResult, intentOccasion
   const availability =
     status.status === "in_stock"
       ? `in stock at ${status.inventory?.storeName}`
+      : status.status === "nearby_store"
+        ? `not in stock at the selected store, but available at ${status.inventory?.storeName}`
       : status.status === "online_only"
         ? "available online only"
-        : status.status === "out_of_stock"
-          ? "currently out of stock in the requested size"
-          : "not ranged at this store";
+      : status.status === "out_of_stock"
+        ? "currently out of stock in the requested size"
+        : "not stocked at this store";
 
   return `${item.productDisplayName} matches ${intentOccasion} through ${item.styleTags
     .slice(0, 3)
@@ -57,8 +63,8 @@ function rankResults(cards: RecommendationCard[]) {
   return [...cards].sort((left, right) => {
     const leftAccepted = left.guardrail.accepted ? 1 : 0;
     const rightAccepted = right.guardrail.accepted ? 1 : 0;
-    const leftStock = left.inventoryStatus === "in_stock" ? 1 : 0;
-    const rightStock = right.inventoryStatus === "in_stock" ? 1 : 0;
+    const leftStock = left.inventoryStatus === "in_stock" ? 2 : left.inventoryStatus === "nearby_store" ? 1 : 0;
+    const rightStock = right.inventoryStatus === "in_stock" ? 2 : right.inventoryStatus === "nearby_store" ? 1 : 0;
     const leftBusiness =
       left.product.inventory_health_score * 0.002 + left.product.commercial_priority_score * 0.0015;
     const rightBusiness =
@@ -100,7 +106,7 @@ function demandMissedReason({
 }) {
   if (foundInStock) return null;
   if (/plus[-\s]?size/i.test(query)) {
-    return "Unmet demand: plus-size formalwear is not available in requested size at RetailNext Oak Street.";
+    return "Unmet demand: plus-size formalwear is not available in the requested size across the three-store network.";
   }
   if (foundRelevantMatch) {
     return "Relevant products were found, but no adequate in-store stock matched the request.";
@@ -260,6 +266,24 @@ function executeInventoryToolDemo(productIds: string[], size: string) {
   };
 }
 
+function workflowCandidates(workflowId: RecommendationWorkflowId | undefined, retrieved: RetrievedCandidate[]) {
+  const workflow = getRecommendationWorkflow(workflowId);
+  if (!workflow) return retrieved;
+
+  return workflow.candidateIds.flatMap((productId, index) => {
+    const existing = retrieved.find((candidate) => candidate.item.id === productId);
+    const item = existing?.item ?? getCatalogItem(productId);
+    if (!item) return [];
+
+    return [
+      {
+        item,
+        similarityScore: existing?.similarityScore ?? Number((0.98 - index * 0.015).toFixed(3)),
+      },
+    ];
+  });
+}
+
 async function runPipeline(request: RecommendationRequest, runMode: RunMode): Promise<RecommendResponse> {
   const intent =
     runMode === "live"
@@ -269,8 +293,9 @@ async function runPipeline(request: RecommendationRequest, runMode: RunMode): Pr
           inputMode: request.inputMode,
           selectedSampleId: request.selectedSampleId,
         });
-  const retrieved: RetrievedCandidate[] =
+  const rawRetrieved: RetrievedCandidate[] =
     runMode === "live" ? await retrieveMatchesLive(intent) : await retrieveMatchesDemo(intent);
+  const retrieved = workflowCandidates(request.workflowId, rawRetrieved);
   const candidateIds = retrieved.slice(0, 16).map((candidate) => candidate.item.id);
   const inventoryTool =
     runMode === "live"
@@ -296,7 +321,7 @@ async function runPipeline(request: RecommendationRequest, runMode: RunMode): Pr
         status: "not_ranged",
         inventory: null,
         location: null,
-        reason: "Not ranged at this store in deterministic RetailNext mock data.",
+        reason: "Not stocked at this store in deterministic RetailNext mock data.",
       } satisfies InventoryToolResult);
     const guardrail = guardrails[index] ?? ({ accepted: false, reason: "No guardrail result." } satisfies GuardrailResult);
 
@@ -309,7 +334,7 @@ async function runPipeline(request: RecommendationRequest, runMode: RunMode): Pr
       inventoryStatus: inventoryLabel(inventoryResult),
       whyThisMatches: buildWhy(candidate.item, inventoryResult, intent.occasion),
       rankingReason: guardrail.accepted
-        ? "Matched + available + inventory health priority. Business-aware ranking is applied only after relevance."
+        ? "Matched + inventory availability + inventory health priority. Business-aware ranking is applied only after relevance."
         : "Retrieved as evidence, then dropped by the quality guardrail.",
     };
   });
@@ -319,9 +344,19 @@ async function runPipeline(request: RecommendationRequest, runMode: RunMode): Pr
   const recommendations = rankedCards
     .filter((card) => card.guardrail.accepted && card.inventoryStatus === "in_stock")
     .slice(0, 5);
-  const partialMatches = rankedCards
-    .filter((card) => card.guardrail.accepted && card.inventoryStatus !== "in_stock")
-    .slice(0, 4);
+  const partialMatches =
+    recommendations.length > 0
+      ? rankedCards
+          .filter((card) => card.guardrail.accepted && card.inventoryStatus !== "in_stock")
+          .slice(0, 4)
+      : rankedCards
+          .filter((card) => !recommendations.some((recommendation) => recommendation.product.id === card.product.id))
+          .slice(0, 4)
+          .map((card) => ({
+            ...card,
+            rankingReason:
+              "Closest cross-sell option only. It is grounded in retrieval, inventory and guardrail evidence, but it is not presented as an exact match.",
+          }));
   const foundRelevantMatch = rankedCards.some((card) => card.guardrail.accepted);
   const foundInStock = recommendations.length > 0;
   const demandRecord = createDemandRecord({
@@ -350,7 +385,7 @@ async function runPipeline(request: RecommendationRequest, runMode: RunMode): Pr
       reason: card.guardrail.reason,
     })),
     rankingAnnotation:
-      "Ranking order: guardrail quality first, then inventory availability, then inventory health and commercial priority.",
+      "Ranking order: guardrail quality first, then Oak Street availability, then nearby-store availability, then inventory health and commercial priority.",
     retrievalEvidence: retrieved.slice(0, 5).map((candidate, index) => {
       const card = cardByProductId.get(candidate.item.id);
       return {
@@ -366,6 +401,7 @@ async function runPipeline(request: RecommendationRequest, runMode: RunMode): Pr
 
   return {
     mode: runMode,
+    workflowId: request.workflowId ?? null,
     fallbackUsed: false,
     fallbackMessage: null,
     intent,
