@@ -26,11 +26,12 @@ import { inventoryNextStep, inventoryStatusLabel } from "@/lib/inventory/labels"
 import { LazyPipelineOverlay, type PipelineStep } from "./LazyPipelineOverlay";
 import { ProductCard } from "./ProductCard";
 import { getRecommendationWorkflow, RECOMMENDATION_WORKFLOWS } from "@/lib/recommend/workflows";
+import { validateImageFile } from "@/lib/recommend/image-validation";
 
 const recommendSteps: PipelineStep[] = [
   {
     title: "Analyzing input",
-    label: "GPT-4o analysis",
+    label: "Multimodal AI",
     status: "Extracting occasion, style, size and budget",
     result: "Intent extracted into structured chips",
   },
@@ -48,7 +49,7 @@ const recommendSteps: PipelineStep[] = [
   },
   {
     title: "Quality guardrail",
-    label: "GPT-4o self-check",
+    label: "AI guardrail",
     status: "Checking relevance and occasion fit",
     result: "Weak matches dropped",
   },
@@ -134,6 +135,14 @@ function TechnicalTracePanel({ trace }: { trace: TechnicalTrace | null }) {
       </summary>
 
       <div className="mt-4 grid gap-4 lg:grid-cols-2">
+        <section className="rounded-md border border-violet-100 bg-violet-50 p-3 lg:col-span-2">
+          <div className="flex flex-wrap gap-x-5 gap-y-2 text-xs text-violet-950">
+            <span><strong>Request:</strong> {trace.requestId}</span>
+            <span><strong>Mode:</strong> {trace.mode === "live" ? "Maven Live" : "Simulated data"}</span>
+            <span><strong>Latency:</strong> {trace.durationMs} ms</span>
+            <span><strong>Retrieval:</strong> {trace.retrievalStrategy}</span>
+          </div>
+        </section>
         <section>
           <h3 className="text-sm font-semibold text-neutral-950">Retrieval query</h3>
           <p className="mt-2 rounded-md bg-neutral-50 p-3 font-mono text-xs leading-5 text-neutral-700">
@@ -167,6 +176,22 @@ function TechnicalTracePanel({ trace }: { trace: TechnicalTrace | null }) {
             ))}
           </div>
         </section>
+      </div>
+
+      <div className="mt-5">
+        <h3 className="text-sm font-semibold text-neutral-950">Fact provenance</h3>
+        <div className="mt-2 grid gap-3 md:grid-cols-3">
+          {[
+            ["AI inferred", trace.provenance.aiInferred, "border-violet-200 bg-violet-50"],
+            ["System verified", trace.provenance.systemVerified, "border-blue-200 bg-blue-50"],
+            ["Business calculated", trace.provenance.businessCalculated, "border-amber-200 bg-amber-50"],
+          ].map(([title, items, colour]) => (
+            <section key={String(title)} className={`rounded-md border p-3 ${colour}`}>
+              <p className="text-xs font-semibold uppercase text-neutral-700">{String(title)}</p>
+              <p className="mt-2 text-xs leading-5 text-neutral-600">{(items as string[]).join(" · ")}</p>
+            </section>
+          ))}
+        </div>
       </div>
 
       <div className="mt-5">
@@ -299,6 +324,7 @@ export function RecommendView({
   onResult,
   onLocate,
   onFallback,
+  sessionId,
 }: {
   mode: RunMode;
   inputMode: InputMode;
@@ -315,6 +341,7 @@ export function RecommendView({
   onResult: (response: RecommendResponse) => void;
   onLocate: (recommendation: RecommendationCard) => void;
   onFallback: (message: string | null) => void;
+  sessionId: string;
 }) {
   const [loading, setLoading] = useState(false);
   const [activeStep, setActiveStep] = useState(0);
@@ -353,9 +380,13 @@ export function RecommendView({
           selectedSampleId,
           imageDataUrl,
           workflowId,
+          sessionId,
         }),
       }).then(async (response) => {
-        if (!response.ok) throw new Error("Recommendation request failed.");
+        if (!response.ok) {
+          const payload = (await response.json().catch(() => ({}))) as { error?: string };
+          throw new Error(payload.error || "Recommendation request failed.");
+        }
         return (await response.json()) as RecommendResponse;
       });
 
@@ -455,6 +486,13 @@ export function RecommendView({
                 onChange={async (event) => {
                   const file = event.target.files?.[0];
                   if (!file) return;
+                  const validationError = validateImageFile(file);
+                  if (validationError) {
+                    setError(validationError);
+                    event.target.value = "";
+                    return;
+                  }
+                  setError(null);
                   setUploadedImageDataUrl(await fileToDataUrl(file));
                 }}
               />
@@ -467,6 +505,9 @@ export function RecommendView({
 
         <div className="mt-5 border-t border-neutral-200 pt-5">
           <p className="text-sm font-semibold text-neutral-900">Or launch a demo story</p>
+          <p className="mt-1 text-xs leading-5 text-neutral-500">
+            Simulated data uses curated candidates for repeatability. Maven Live uses the prompt and retrieves dynamically.
+          </p>
           <div className="mt-3 grid gap-3">
             {RECOMMENDATION_WORKFLOWS.map((workflow) => {
               const Icon = workflowIcons[workflow.id];

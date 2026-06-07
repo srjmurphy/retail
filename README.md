@@ -1,156 +1,240 @@
-# RetailNext AI Retail Intelligence Demo
+# RetailNext Maven
 
-## What this is
+RetailNext Maven is an AI retail intelligence prototype built on the OpenAI outfit-assistant cookbook. It connects three business moments:
 
-A Next.js App Router demo for an OpenAI Solutions Engineering onsite story:
+1. **Style** understands a customer request or image and creates a grounded product edit.
+2. **Fulfil** verifies inventory across three stores and provides an associate-ready route.
+3. **Grow** converts fulfilled, partial and missed searches into buying and store actions.
 
-**Recommend → Locate → Optimise**
+The product is designed around a simple trust boundary: OpenAI models interpret intent, select tools and synthesize actions; RetailNext systems remain authoritative for products, prices, sizes, inventory and store location.
 
-The cookbook recommends outfits. RetailNext needs more than recommendations. This demo extends the cookbook into retail execution intelligence: recommend the right item, locate it in-store, and convert every hit or miss into merchandising action.
+## Why It Exists
 
-## How it extends the OpenAI cookbook
+RetailNext customers are shopping for time-sensitive events but report difficulty finding current styles and specific products in stores. Maven addresses:
 
-Original cookbook:
-https://developers.openai.com/cookbook/examples/how_to_combine_gpt4o_with_rag_outfit_assistant
+- lost conversion from weak product discovery
+- poor reviews caused by unavailable or hard-to-find stock
+- fragmented inventory across a store network
+- demand signals that never reach merchandising teams
 
-Sample data:
-https://github.com/openai/openai-cookbook/tree/main/examples/data/sample_clothes
+The original cookbook demonstrates multimodal outfit recommendation with retrieval. Maven extends that pattern into a closed retail loop from customer intent to fulfilment and commercial learning.
 
-Sample images:
-https://github.com/openai/openai-cookbook/tree/main/examples/data/sample_clothes/sample_images
+## Architecture
 
-The app preserves the cookbook pattern:
+```mermaid
+flowchart LR
+    A[Customer text or photo] --> B[Structured intent extraction]
+    B --> C[Hybrid catalogue retrieval]
+    C --> D[Suitability guardrail]
+    D --> E[Inventory and location tool]
+    E --> F[Style and Fulfil experience]
+    F --> G[Server-side demand log]
+    G --> H[Model-selected analytics tools]
+    H --> I[Grounded executive action]
+```
 
-- GPT-4o analyzes text or image intent in Live AI mode.
-- Product text is loaded from the static cookbook clothing CSV.
-- Product rows are enriched into `searchText`.
-- Retrieval uses embeddings/cosine similarity over product records.
-- A GPT-4o-style guardrail confirms or drops matches.
+### AI-Inferred Facts
 
-RetailNext then adds execution intelligence:
+- occasion and requested garment types
+- colour and style preferences
+- gender, size, budget and urgency
 
-- deterministic inventory and store location tools
-- in-store route cards
-- business-aware ranking after quality and availability
-- demand-signal logging
-- Trend-to-Rack Copilot merchandising actions
+### System-Verified Facts
 
-## Use of cookbook sample_images
+- product identity and catalogue attributes
+- price and available sizes
+- store inventory and pickup availability
+- floor, department, aisle and bay
 
-`sample_images` provides local product imagery.
+### Business-Calculated Facts
 
-Image filenames are numeric product IDs. Product cards use `/sample_clothes/sample_images/{id}.jpg` when available. Photo mode can use bundled sample images to mirror the cookbook’s image-analysis input. Placeholders are only fallback when no matching image exists.
+- hybrid relevance score
+- availability-aware ranking
+- guardrail acceptance
+- missed revenue and opportunity priority
 
-This repo downloads the official cookbook `sample_images` into:
+## Maven Live
 
-`public/sample_clothes/sample_images/*.jpg`
+Maven Live is an unambiguously dynamic path:
 
-## How sample_styles.csv is used
+1. A configurable multimodal OpenAI model extracts a strict `InputIntent` schema.
+2. The intent becomes a text query embedded with `text-embedding-3-large`.
+3. The query embedding is compared with the cookbook's precomputed product embeddings.
+4. Dense similarity is blended with enriched catalogue-text similarity.
+5. A schema-constrained AI guardrail checks style, occasion, size and budget.
+6. OpenAI tool calling requests inventory and location facts from local RetailNext functions.
+7. Results are ranked by relevance, local fulfilment, nearby fulfilment and commercial priority.
 
-The app loads:
+An uploaded photo is used for multimodal intent extraction. Retrieval is then text-embedding based; this prototype does not claim direct image-to-image similarity.
 
-`data/sample_clothes/sample_styles.csv`
+Selecting a story in Maven Live uses only the story prompt. Curated product IDs are never substituted into Live retrieval.
 
-Rows are normalized into catalog items while preserving cookbook fields such as `id`, `productDisplayName`, `articleType`, `gender`, `masterCategory`, `subCategory`, `baseColour`, `usage`, and `season`.
+## Simulated Data
 
-RetailNext fields such as `occasionTags`, `styleTags`, `price`, `available_sizes`, `inventory_health_score`, and `commercial_priority_score` are added in code. The derived `searchText` field makes event-led queries work without hardcoding final recommendations.
+Simulated Data is the deterministic presentation and fallback path. It:
 
-## How embeddings/RAG work
+- runs without an API key or network
+- keeps curated candidates for the three repeatable demo stories
+- uses deterministic intent parsing, sparse cosine retrieval and policy guardrails
+- uses the same inventory, ranking, demand logging and UI contracts as Maven Live
 
-Demo mode uses deterministic token embeddings and cosine similarity over enriched `searchText`.
+If a Live call fails or the key is unavailable, the application visibly returns the deterministic result and identifies the fallback.
 
-Live AI mode uses `text-embedding-3-large` for the query and compares against the cookbook embedding data when `sample_styles_with_embeddings.csv` is present. Results then pass through inventory/location filtering, guardrails, and business-aware ranking.
+## Three Demo Stories
 
-## Demo mode vs Live AI mode
+| Story | Business scenario | Expected outcome |
+|---|---|---|
+| Instant Win | Complete wedding outfit | Four matching pieces at RetailNext Oak Street |
+| Network Save | Interview stock split across stores | Local items plus a nearby-store option |
+| Growth Signal | Plus-size winter formalwear unavailable | Unmet demand logged for Grow |
 
-Demo mode is default. It needs no API key, no network, and is deterministic.
+These stories are deterministic regression scenarios, not evidence that the freeform product is hardcoded.
 
-Live AI mode runs server-side OpenAI calls through Next.js route handlers only:
+## Grow Tool Loop
 
-- `/api/recommend`
-- `/api/trend-to-rack`
+In Maven Live, the model receives an executive question and chooses relevant tools from:
 
-If the key is missing, a call fails, a timeout occurs, or a response is invalid, the app returns the Demo mode result and shows:
+- `analyze_customer_intents`
+- `inspect_inventory_gaps`
+- `summarize_substitution_trends`
+- `inspect_store_location_failures`
+- `compare_competitor_signal`
+- `recommend_business_actions`
 
-`Live AI unavailable — showing simulated result.`
+The application executes each selected tool over trusted demand and inventory data, returns the output to the model, and then requests a schema-constrained executive brief.
 
-## How to run
+Governance policy guarantees the core intent and action tools even if the model omits them. Revenue ranking remains deterministic so an unsupported narrative cannot replace the largest grounded opportunity.
+
+## Persistence
+
+Demand records are stored server-side by an anonymous browser session ID and reloaded after browser refresh. Reset clears both client state and the server-side session.
+
+The included adapter is an in-memory prototype store. A production deployment would replace it with RetailNext's event platform, database or warehouse while preserving the same functions.
+
+## Observability
+
+Each recommendation includes:
+
+- request ID and start time
+- total latency
+- selected models
+- retrieval strategy and query
+- candidate and retrieval evidence
+- inventory tool input/output
+- guardrail decisions
+- fact provenance
+
+Grow records which tools were selected by the model, guaranteed by policy or run in deterministic demo mode.
+
+## Evaluation
+
+Start the application, then run:
+
+```bash
+npm run eval
+```
+
+The deterministic suite checks:
+
+- complete local fulfilment
+- distributed inventory
+- genuine unmet demand
+- arbitrary freeform retrieval
+- budget guardrail compliance
+- correct largest-miss ranking
+- image upload rejection
+- server-side persistence and reset
+
+To include paid Maven Live checks:
+
+```bash
+npm run eval:live
+```
+
+Live evaluations verify that story prompts do not activate curated candidates and that an uploaded image is interpreted through the multimodal model.
+
+The machine-readable report is also available from:
+
+```text
+GET /api/evals
+GET /api/evals?live=1
+```
+
+## Data
+
+Catalogue:
+
+```text
+data/sample_clothes/sample_styles.csv
+```
+
+Precomputed embeddings:
+
+```text
+data/sample_clothes/sample_styles_with_embeddings.csv
+```
+
+Product images:
+
+```text
+public/sample_clothes/sample_images/{productId}.jpg
+```
+
+Cookbook rows are enriched with prototype retail fields including price, sizes, occasion tags, style tags, inventory health and commercial priority.
+
+## Run Locally
 
 ```bash
 npm install
 npm run dev
 ```
 
-Open:
+Open [http://localhost:3000](http://localhost:3000).
 
-`http://localhost:3000`
-
-To refresh cookbook assets:
-
-```bash
-npm run fetch:cookbook-assets
-```
-
-## How to set OPENAI_API_KEY
+### Environment
 
 Create `.env.local`:
 
 ```bash
 OPENAI_API_KEY=your_key_here
-OPENAI_VISION_MODEL=gpt-4o
-OPENAI_TEXT_MODEL=gpt-4o
+OPENAI_TEXT_MODEL=gpt-5.4-mini
+OPENAI_VISION_MODEL=gpt-5.4-mini
 OPENAI_EMBEDDING_MODEL=text-embedding-3-large
 ```
 
-The defaults are centralized in:
+Model defaults are centralized in `src/lib/openai/models.ts` and can be changed without editing pipeline code.
 
-`src/lib/openai/models.ts`
+The API key is used only in server-side route handlers. No `NEXT_PUBLIC_OPENAI_API_KEY` is used.
 
-## Security note
+## API Routes
 
-The API key is server-side only. The app reads `OPENAI_API_KEY` in route handlers and never uses `NEXT_PUBLIC_OPENAI_API_KEY`.
+| Route | Purpose |
+|---|---|
+| `POST /api/recommend` | Intent, retrieval, inventory, guardrail and ranking |
+| `POST /api/trend-to-rack` | Model-selected Grow analysis and executive synthesis |
+| `GET /api/demand` | Restore session demand records |
+| `DELETE /api/demand` | Reset session demand records |
+| `GET /api/evals` | Run deterministic evaluation suite |
+| `GET /api/retrieval-coverage` | Inspect broader query coverage |
 
-## 60-second demo script
+## Verification
 
-1. Open app in Demo mode.
-2. Recommend tab.
-3. Run success query:
-   I need a navy outfit for an outdoor wedding next weekend, men's, size 42, under $400.
-4. Show dimmed lazy-loader pipeline.
-5. Show product results with real sample images.
-6. Open presenter annotation briefly.
-7. Click Locate in store.
-8. Show step-by-step in-store route:
-   Entrance → Floor → Department → Aisle → Bay → Fitting Room.
-9. Return to Recommend.
-10. Run miss query:
-    I need plus-size formalwear for a winter wedding this weekend, under $250.
-11. Show lazy-loader pipeline and no adequate in-stock result.
-12. Confirm unmet demand logged.
-13. Open Optimise / Trend-to-Rack Copilot.
-14. Run:
-    What demand are we missing before this weekend, and what should RetailNext move, promote, or brief?
-15. Show dimmed tool-call lazy-loader.
-16. Show Recommended Buy Signals, threshold slider, expandable tool-call trace, and action brief.
-17. Jump back to Recommend and verify previous results remain visible.
-18. Jump back to Optimise and verify demand signals persist.
+```bash
+npm run check
+npm run build
+git diff --check
+```
 
-## Anti-happy-path explanation
+## Production Path
 
-The app is not wired to one canned query. Demo mode still runs:
+For production, replace the local adapters with:
 
-intent extraction → embedding/RAG retrieval → inventory/location filtering → guardrail validation → business-aware ranking
+- RetailNext product information and pricing APIs
+- real-time inventory and order-management systems
+- store planogram or indoor-location services
+- durable demand-event storage
+- identity and role-based access
+- offline and online evaluation datasets
+- latency, cost, quality and safety monitoring
 
-The internal coverage route runs the required queries and returns extracted intent, top retrieved `productDisplayName` values, image availability, inventory status, route availability, and hit/partial/miss status:
-
-`GET /api/retrieval-coverage`
-
-The deliberate miss query is:
-
-`I need plus-size formalwear for a winter wedding this weekend, under $250.`
-
-## State persistence across tabs
-
-State is shared in-memory at the top-level React app state layer.
-
-Switching tabs does not reset Recommend results, Locate selection, generated route, Optimise demand signals, mode selection, or the threshold. No `localStorage` or `sessionStorage` is used. Reset only happens through the explicit `Reset demo` action.
+Direct visual product embeddings could be added as a second-stage ranker. They are intentionally excluded from this prototype so its current photo-search behaviour remains technically accurate.

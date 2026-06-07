@@ -1,10 +1,11 @@
 import type { TrendToRackResult, TrendToolTrace } from "@/types/demo";
+import type OpenAI from "openai";
 import { hasOpenAIKey, getOpenAIClient } from "@/lib/openai/client";
 import { TEXT_MODEL } from "@/lib/openai/models";
 import { withTimeout } from "@/lib/openai/timeout";
 import { combineDemandRecords } from "@/lib/demand-log/summarize";
 import type { TrendInput, TrendToolName } from "./types";
-import { runTrendTools } from "./tools";
+import { executeTrendTool, runTrendTools } from "./tools";
 
 const toolNames: TrendToolName[] = [
   "analyze_customer_intents",
@@ -23,10 +24,18 @@ function deterministicResult({
   traces,
   prompt,
   fallbackUsed = false,
+  requestId,
+  startedAt,
+  startedMs,
+  orchestration = "deterministic_demo",
 }: {
   traces: TrendToolTrace[];
   prompt: string;
   fallbackUsed?: boolean;
+  requestId: string;
+  startedAt: string;
+  startedMs: number;
+  orchestration?: TrendToRackResult["orchestration"];
 }): TrendToRackResult {
   const intents = outputFor<{
     totalSignals: number;
@@ -34,29 +43,50 @@ function deterministicResult({
     missedSearches: number;
     emergingIntents: string[];
     missedRevenue: number;
-  }>(traces, "analyze_customer_intents");
+  }>(traces, "analyze_customer_intents") ?? {
+    totalSignals: 0,
+    highQualitySignals: 0,
+    missedSearches: 0,
+    emergingIntents: [],
+    missedRevenue: 0,
+  };
   const gaps = outputFor<{
     categorySizeColourRisks: string[];
     estimatedMissedRevenue: number;
-  }>(traces, "inspect_inventory_gaps");
+  }>(traces, "inspect_inventory_gaps") ?? {
+    categorySizeColourRisks: [],
+    estimatedMissedRevenue: intents.missedRevenue,
+  };
   const substitutions = outputFor<{
     substitutionPatterns: string[];
-  }>(traces, "summarize_substitution_trends");
+  }>(traces, "summarize_substitution_trends") ?? { substitutionPatterns: [] };
   const findability = outputFor<{
     findabilityIssueCount: number;
     spreadAcrossDepartments: string[];
     recommendedStoreOpsNeed: string;
-  }>(traces, "inspect_store_location_failures");
+  }>(traces, "inspect_store_location_failures") ?? {
+    findabilityIssueCount: 0,
+    spreadAcrossDepartments: [],
+    recommendedStoreOpsNeed: "No store-location analysis was required for this question.",
+  };
   const competitor = outputFor<{
     label: string;
     signal: string;
     source: string;
-  }>(traces, "compare_competitor_signal");
+  }>(traces, "compare_competitor_signal") ?? {
+    label: "Not requested",
+    signal: "No competitor signal was used.",
+    source: "No external or simulated competitor evidence used.",
+  };
   const actions = outputFor<{
     recommendedBuySignals: TrendToRackResult["buySignals"];
     allSignals: TrendToRackResult["buySignals"];
     recommendedActions: string[];
-  }>(traces, "recommend_business_actions");
+  }>(traces, "recommend_business_actions") ?? {
+    recommendedBuySignals: [],
+    allSignals: [],
+    recommendedActions: [],
+  };
 
   const missedRevenue = gaps.estimatedMissedRevenue || intents.missedRevenue;
   const rankedMisses = [...actions.allSignals]
@@ -77,7 +107,12 @@ function deterministicResult({
     : "Monitor new customer searches until a demand gap crosses the evidence threshold.";
 
   return {
+    requestId,
+    startedAt,
+    durationMs: Date.now() - startedMs,
     mode: fallbackUsed ? "demo" : "demo",
+    model: fallbackUsed ? `${TEXT_MODEL} unavailable; deterministic fallback` : "deterministic retail functions",
+    orchestration,
     fallbackUsed,
     fallbackMessage: fallbackUsed ? "Live AI unavailable — showing simulated result." : null,
     executiveBrief: biggestMiss
@@ -111,53 +146,98 @@ function deterministicResult({
   };
 }
 
-async function callForcedTool(name: TrendToolName, input: TrendInput) {
+const trendTools: OpenAI.Chat.Completions.ChatCompletionTool[] = toolNames.map((name) => ({
+  type: "function",
+  function: {
+    name,
+    description: {
+      analyze_customer_intents: "Summarize demand volume, fulfilment, occasions, sizes and missed revenue.",
+      inspect_inventory_gaps: "Find category, size and stock-depth gaps behind missed demand.",
+      summarize_substitution_trends: "Identify recurring partial-match and substitution behaviour.",
+      inspect_store_location_failures: "Inspect available-but-hard-to-find products and store route friction.",
+      compare_competitor_signal: "Add the explicitly simulated competitor promotion signal.",
+      recommend_business_actions: "Rank grounded buying, allocation and store actions by revenue and confidence.",
+    }[name],
+    strict: true,
+    parameters: {
+      type: "object",
+      additionalProperties: false,
+      properties: {},
+      required: [],
+    },
+  },
+}));
+
+async function runModelToolLoop(input: TrendInput, records: TrendInput["demandRecords"]) {
   const client = getOpenAIClient();
+  const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
+    {
+      role: "system",
+      content:
+        "You are Maven, a retail intelligence orchestrator. Select only the tools needed to answer the executive question. Use tools before answering. Inventory, revenue and store facts must come from tools. Always use analyze_customer_intents and recommend_business_actions; add other tools only when relevant.",
+    },
+    {
+      role: "user",
+      content: JSON.stringify({
+        executiveQuestion: input.prompt,
+        threshold: input.threshold,
+        demandRecordCount: records.length,
+      }),
+    },
+  ];
+  const traces: TrendToolTrace[] = [];
 
-  // Production seam: this is where the real OpenAI tool call happens.
-  const response = await withTimeout(
-    client.chat.completions.create({
-      model: TEXT_MODEL,
-      messages: [
-        {
-          role: "system",
-          content: `Call ${name}. The local application will execute the tool over deterministic mock data.`,
-        },
-        {
-          role: "user",
-          content: JSON.stringify({
-            prompt: input.prompt,
-            threshold: input.threshold,
-            demandRecordCount: input.demandRecords.length,
-          }),
-        },
-      ],
-      tools: [
-        {
-          type: "function",
-          function: {
-            name,
-            description: `Maven intelligence tool: ${name}`,
-            parameters: {
-              type: "object",
-              properties: {
-                threshold: { type: "number" },
-                recordCount: { type: "number" },
-              },
-            },
-          },
-        },
-      ],
-      tool_choice: {
-        type: "function",
-        function: { name },
-      },
-    }),
-  );
+  for (let round = 0; round < 4; round += 1) {
+    const response = await withTimeout(
+      client.chat.completions.create({
+        model: TEXT_MODEL,
+        messages,
+        tools: trendTools,
+        tool_choice: "auto",
+      }),
+    );
+    const message = response.choices[0]?.message;
+    if (!message) throw new Error("Maven returned no orchestration message.");
+    messages.push(message);
 
-  if (!response.choices[0]?.message?.tool_calls?.[0]) {
-    throw new Error(`OpenAI did not call ${name}`);
+    if (!message.tool_calls?.length) break;
+
+    for (const call of message.tool_calls) {
+      if (call.type !== "function" || !toolNames.includes(call.function.name as TrendToolName)) continue;
+      const name = call.function.name as TrendToolName;
+      const toolStarted = Date.now();
+      const output = executeTrendTool(name, records, input.threshold);
+      traces.push({
+        name,
+        input: { recordCount: records.length, threshold: input.threshold },
+        output,
+        selectedBy: "model",
+        durationMs: Date.now() - toolStarted,
+      });
+      messages.push({
+        role: "tool",
+        tool_call_id: call.id,
+        content: JSON.stringify(output),
+      });
+    }
+
+    const selected = new Set(traces.map((trace) => trace.name));
+    if (selected.has("analyze_customer_intents") && selected.has("recommend_business_actions")) break;
   }
+
+  for (const name of ["analyze_customer_intents", "recommend_business_actions"] as TrendToolName[]) {
+    if (traces.some((trace) => trace.name === name)) continue;
+    const toolStarted = Date.now();
+    traces.push({
+      name,
+      input: { recordCount: records.length, threshold: input.threshold },
+      output: executeTrendTool(name, records, input.threshold),
+      selectedBy: "policy",
+      durationMs: Date.now() - toolStarted,
+    });
+  }
+
+  return traces;
 }
 
 async function synthesizeLiveBrief(traces: TrendToolTrace[], prompt: string) {
@@ -167,7 +247,22 @@ async function synthesizeLiveBrief(traces: TrendToolTrace[], prompt: string) {
   const response = await withTimeout(
     client.chat.completions.create({
       model: TEXT_MODEL,
-      response_format: { type: "json_object" },
+      response_format: {
+        type: "json_schema",
+        json_schema: {
+          name: "maven_growth_brief",
+          strict: true,
+          schema: {
+            type: "object",
+            additionalProperties: false,
+            properties: {
+              executiveBrief: { type: "string" },
+              nextMove: { type: "string" },
+            },
+            required: ["executiveBrief", "nextMove"],
+          },
+        },
+      },
       messages: [
         {
           role: "system",
@@ -192,10 +287,18 @@ async function synthesizeLiveBrief(traces: TrendToolTrace[], prompt: string) {
 }
 
 export async function runTrendToRackCopilot(input: TrendInput): Promise<TrendToRackResult> {
+  const requestId = `grow-${crypto.randomUUID()}`;
+  const startedAt = new Date().toISOString();
+  const startedMs = Date.now();
   const records = combineDemandRecords(input.demandRecords);
   if (!records.length) {
     return {
+      requestId,
+      startedAt,
+      durationMs: Date.now() - startedMs,
       mode: input.mode,
+      model: input.mode === "live" ? TEXT_MODEL : "deterministic retail functions",
+      orchestration: input.mode === "live" ? "model_tool_loop" : "deterministic_demo",
       fallbackUsed: false,
       fallbackMessage: null,
       executiveBrief: "No customer evidence is available yet.",
@@ -213,29 +316,52 @@ export async function runTrendToRackCopilot(input: TrendInput): Promise<TrendToR
   const traces = runTrendTools(records, input.threshold);
 
   if (input.mode === "demo") {
-    return deterministicResult({ traces, prompt: input.prompt });
+    return deterministicResult({ traces, prompt: input.prompt, requestId, startedAt, startedMs });
   }
 
   if (!hasOpenAIKey()) {
-    return deterministicResult({ traces, prompt: input.prompt, fallbackUsed: true });
+    return deterministicResult({
+      traces,
+      prompt: input.prompt,
+      fallbackUsed: true,
+      requestId,
+      startedAt,
+      startedMs,
+      orchestration: "fallback_demo",
+    });
   }
 
   try {
-    for (const name of toolNames) {
-      await callForcedTool(name, input);
-    }
-
-    const liveBrief = await synthesizeLiveBrief(traces, input.prompt);
-    const deterministic = deterministicResult({ traces, prompt: input.prompt });
+    const selectedTraces = await runModelToolLoop(input, records);
+    const liveBrief = await synthesizeLiveBrief(selectedTraces, input.prompt);
+    const deterministic = deterministicResult({
+      traces: selectedTraces,
+      prompt: input.prompt,
+      requestId,
+      startedAt,
+      startedMs,
+      orchestration: "model_tool_loop",
+    });
 
     return {
       ...deterministic,
       mode: "live",
+      model: TEXT_MODEL,
+      orchestration: "model_tool_loop",
+      durationMs: Date.now() - startedMs,
       executiveBrief: liveBrief.executiveBrief || deterministic.executiveBrief,
       nextMove: deterministic.nextMove,
     };
   } catch (error) {
     console.error("Live Maven analysis failed", error);
-    return deterministicResult({ traces, prompt: input.prompt, fallbackUsed: true });
+    return deterministicResult({
+      traces,
+      prompt: input.prompt,
+      fallbackUsed: true,
+      requestId,
+      startedAt,
+      startedMs,
+      orchestration: "fallback_demo",
+    });
   }
 }

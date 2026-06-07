@@ -90,7 +90,16 @@ export type RetrievalEvidence = {
 };
 
 export type TechnicalTrace = {
+  requestId: string;
+  startedAt: string;
+  durationMs: number;
   mode: RunMode;
+  models: {
+    intent: string;
+    embedding: string;
+    guardrail: string;
+  };
+  retrievalStrategy: string;
   retrievalQuery: string;
   candidateCount: number;
   topProductDisplayNames: string[];
@@ -107,6 +116,11 @@ export type TechnicalTrace = {
   }[];
   rankingAnnotation: string;
   retrievalEvidence: RetrievalEvidence[];
+  provenance: {
+    aiInferred: string[];
+    systemVerified: string[];
+    businessCalculated: string[];
+  };
 };
 
 export type DemandRecord = {
@@ -148,6 +162,8 @@ export type TrendToolTrace = {
   name: string;
   input: Record<string, unknown>;
   output: Record<string, unknown>;
+  selectedBy?: "model" | "policy" | "demo";
+  durationMs?: number;
 };
 
 export type BuySignal = {
@@ -161,7 +177,12 @@ export type BuySignal = {
 };
 
 export type TrendToRackResult = {
+  requestId: string;
+  startedAt: string;
+  durationMs: number;
   mode: RunMode;
+  model: string;
+  orchestration: "model_tool_loop" | "deterministic_demo" | "fallback_demo";
   fallbackUsed: boolean;
   fallbackMessage: string | null;
   executiveBrief: string;

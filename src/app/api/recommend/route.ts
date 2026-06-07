@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { runRecommendationPipeline } from "@/lib/recommend/pipeline";
 import type { InputMode, RecommendationWorkflowId, RunMode } from "@/types/demo";
+import { appendDemandRecord } from "@/lib/demand-log/store";
+import { validateImageDataUrl } from "@/lib/recommend/image-validation";
 
 export const runtime = "nodejs";
 
@@ -13,7 +15,9 @@ export async function POST(request: Request) {
       selectedSampleId?: string;
       imageDataUrl?: string;
       workflowId?: RecommendationWorkflowId;
+      sessionId?: string;
     };
+    validateImageDataUrl(body.imageDataUrl);
 
     const result = await runRecommendationPipeline({
       mode: body.mode === "live" ? "live" : "demo",
@@ -25,15 +29,19 @@ export async function POST(request: Request) {
       imageDataUrl: body.imageDataUrl,
       workflowId: body.workflowId,
     });
+    if (body.sessionId?.trim()) {
+      appendDemandRecord(body.sessionId.trim(), result.demandRecord);
+    }
 
     return NextResponse.json(result);
   } catch (error) {
     console.error("Recommendation route failed", error);
+    const message = error instanceof Error ? error.message : "Recommendation failed.";
     return NextResponse.json(
       {
-        error: "Recommendation failed.",
+        error: message,
       },
-      { status: 500 },
+      { status: message.includes("image") || message.includes("Upload") ? 400 : 500 },
     );
   }
 }

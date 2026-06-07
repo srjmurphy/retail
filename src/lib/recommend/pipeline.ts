@@ -12,7 +12,7 @@ import type {
 } from "@/types/demo";
 import type { CatalogItem } from "@/lib/catalog/types";
 import { hasOpenAIKey, getOpenAIClient } from "@/lib/openai/client";
-import { TEXT_MODEL } from "@/lib/openai/models";
+import { EMBEDDING_MODEL, TEXT_MODEL, VISION_MODEL } from "@/lib/openai/models";
 import { withTimeout } from "@/lib/openai/timeout";
 import { checkInventoryAndLocation } from "@/lib/inventory/tools";
 import type { InventoryToolResult } from "@/lib/inventory/types";
@@ -285,6 +285,9 @@ function workflowCandidates(workflowId: RecommendationWorkflowId | undefined, re
 }
 
 async function runPipeline(request: RecommendationRequest, runMode: RunMode): Promise<RecommendResponse> {
+  const startedAt = new Date();
+  const startedMs = Date.now();
+  const requestId = `style-${crypto.randomUUID()}`;
   const intent =
     runMode === "live"
       ? await analyzeInputLive(request)
@@ -295,7 +298,7 @@ async function runPipeline(request: RecommendationRequest, runMode: RunMode): Pr
         });
   const rawRetrieved: RetrievedCandidate[] =
     runMode === "live" ? await retrieveMatchesLive(intent) : await retrieveMatchesDemo(intent);
-  const retrieved = workflowCandidates(request.workflowId, rawRetrieved);
+  const retrieved = runMode === "demo" ? workflowCandidates(request.workflowId, rawRetrieved) : rawRetrieved;
   const candidateIds = retrieved.slice(0, 16).map((candidate) => candidate.item.id);
   const inventoryTool =
     runMode === "live"
@@ -367,7 +370,21 @@ async function runPipeline(request: RecommendationRequest, runMode: RunMode): Pr
     foundInStock,
   });
   const trace: TechnicalTrace = {
+    requestId,
+    startedAt: startedAt.toISOString(),
+    durationMs: Date.now() - startedMs,
     mode: runMode,
+    models: {
+      intent: runMode === "live" ? (request.inputMode === "photo" ? VISION_MODEL : TEXT_MODEL) : "deterministic-parser",
+      embedding: runMode === "live" ? EMBEDDING_MODEL : "sparse-token-cosine",
+      guardrail: runMode === "live" ? TEXT_MODEL : "deterministic-policy",
+    },
+    retrievalStrategy:
+      runMode === "live"
+        ? "Dynamic hybrid retrieval: OpenAI text embedding (70%) + enriched catalogue text (30%)"
+        : request.workflowId
+          ? "Curated demo story candidates with deterministic scoring"
+          : "Dynamic deterministic catalogue retrieval",
     retrievalQuery: buildRetrievalQuery(intent),
     candidateCount: retrieved.length,
     topProductDisplayNames: retrieved.slice(0, 5).map((candidate) => candidate.item.productDisplayName),
@@ -397,6 +414,26 @@ async function runPipeline(request: RecommendationRequest, runMode: RunMode): Pr
         guardrail: card?.guardrail ?? { accepted: false, reason: "Not evaluated." },
       };
     }),
+    provenance: {
+      aiInferred: [
+        "occasion",
+        "requested item types",
+        "colour and style preferences",
+        "gender, size, budget and urgency",
+      ],
+      systemVerified: [
+        "catalogue product identity",
+        "price and available sizes",
+        "store inventory and pickup availability",
+        "floor, department, aisle and bay",
+      ],
+      businessCalculated: [
+        "hybrid relevance score",
+        "guardrail acceptance",
+        "availability-aware ranking",
+        "estimated missed revenue",
+      ],
+    },
   };
 
   return {

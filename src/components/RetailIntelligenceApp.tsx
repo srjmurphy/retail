@@ -1,7 +1,7 @@
 "use client";
 
 import { MapPinned, PackageSearch, RefreshCcw, TrendingUp } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type {
   AppTab,
   DemandRecord,
@@ -72,8 +72,23 @@ export function RetailIntelligenceApp() {
   const [demandRecords, setDemandRecords] = useState<DemandRecord[]>([]);
   const [threshold, setThreshold] = useState(65);
   const [trendResult, setTrendResult] = useState<TrendToRackResult | null>(null);
+  const [sessionId, setSessionId] = useState("");
 
-  function resetDemo() {
+  useEffect(() => {
+    const existing = window.localStorage.getItem("retailnext-maven-session");
+    const id = existing || crypto.randomUUID();
+    window.localStorage.setItem("retailnext-maven-session", id);
+    setSessionId(id);
+
+    void fetch(`/api/demand?sessionId=${encodeURIComponent(id)}`)
+      .then((response) => (response.ok ? response.json() : { records: [] }))
+      .then((payload: { records?: DemandRecord[] }) => setDemandRecords(payload.records ?? []));
+  }, []);
+
+  async function resetDemo() {
+    if (sessionId) {
+      await fetch(`/api/demand?sessionId=${encodeURIComponent(sessionId)}`, { method: "DELETE" });
+    }
     setActiveTab("recommend");
     setMode("demo");
     setFallbackBanner(null);
@@ -123,7 +138,7 @@ export function RetailIntelligenceApp() {
               <ModeToggle mode={mode} onChange={setMode} />
               <button
                 type="button"
-                onClick={resetDemo}
+                onClick={() => void resetDemo()}
                 className="inline-flex items-center gap-2 rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm font-semibold text-neutral-900 transition hover:bg-neutral-50"
               >
                 <RefreshCcw className="h-4 w-4" aria-hidden="true" />
@@ -183,6 +198,7 @@ export function RetailIntelligenceApp() {
               onResult={handleRecommendationResult}
               onLocate={handleLocate}
               onFallback={setFallbackBanner}
+              sessionId={sessionId}
             />
           ) : null}
 
@@ -199,6 +215,7 @@ export function RetailIntelligenceApp() {
               result={trendResult}
               onResult={setTrendResult}
               onFallback={setFallbackBanner}
+              sessionId={sessionId}
             />
           ) : null}
         </div>

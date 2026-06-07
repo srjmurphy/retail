@@ -93,6 +93,7 @@ function extractOccasion(query: string) {
   if (lower.includes("holiday") || lower.includes("party")) return "holiday party";
   if (lower.includes("graduation")) return "graduation";
   if (lower.includes("vacation") || lower.includes("resort")) return "vacation";
+  if (lower.includes("work trip") || lower.includes("business trip")) return "work trip";
   return "occasionwear";
 }
 
@@ -107,6 +108,7 @@ function extractItems(query: string, occasion: string) {
   if (lower.includes("trouser") || lower.includes("pants")) items.add("trousers");
   if (lower.includes("tie")) items.add("tie");
   if (lower.includes("formalwear")) items.add("formalwear");
+  if (lower.includes("coat") || lower.includes("jacket")) items.add("coat");
   if (lower.includes("outfit") || lower.includes("clothes")) items.add("outfit");
 
   if (items.size === 0) {
@@ -170,6 +172,8 @@ export function analyzeInputDemo({
     items,
     category: occasion.includes("interview")
       ? "workwear"
+      : occasion.includes("work trip")
+        ? "outerwear"
       : occasion.includes("graduation")
         ? "ceremonywear"
         : occasion.includes("vacation")
@@ -203,7 +207,41 @@ export async function analyzeInputLive({
   const response = await withTimeout(
     client.chat.completions.create({
       model: inputMode === "photo" ? VISION_MODEL : TEXT_MODEL,
-      response_format: { type: "json_object" },
+      response_format: {
+        type: "json_schema",
+        json_schema: {
+          name: "retail_intent",
+          strict: true,
+          schema: {
+            type: "object",
+            additionalProperties: false,
+            properties: {
+              items: { type: "array", items: { type: "string" } },
+              category: { type: "string" },
+              gender: { type: "string" },
+              occasion: { type: "string" },
+              size: { type: "string" },
+              budget: { type: ["number", "null"] },
+              colours: { type: "array", items: { type: "string" } },
+              styleConstraints: { type: "array", items: { type: "string" } },
+              store: { type: "string" },
+              urgency: { type: "string" },
+            },
+            required: [
+              "items",
+              "category",
+              "gender",
+              "occasion",
+              "size",
+              "budget",
+              "colours",
+              "styleConstraints",
+              "store",
+              "urgency",
+            ],
+          },
+        },
+      },
       messages: [
         {
           role: "system",

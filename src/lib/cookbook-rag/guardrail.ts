@@ -57,7 +57,33 @@ export async function guardrailCheckLive(intent: InputIntent, items: CatalogItem
   const response = await withTimeout(
     client.chat.completions.create({
       model: TEXT_MODEL,
-      response_format: { type: "json_object" },
+      response_format: {
+        type: "json_schema",
+        json_schema: {
+          name: "recommendation_guardrail",
+          strict: true,
+          schema: {
+            type: "object",
+            additionalProperties: false,
+            properties: {
+              results: {
+                type: "array",
+                items: {
+                  type: "object",
+                  additionalProperties: false,
+                  properties: {
+                    productId: { type: "string" },
+                    accepted: { type: "boolean" },
+                    reason: { type: "string" },
+                  },
+                  required: ["productId", "accepted", "reason"],
+                },
+              },
+            },
+            required: ["results"],
+          },
+        },
+      },
       messages: [
         {
           role: "system",

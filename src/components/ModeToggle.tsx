@@ -20,7 +20,7 @@ export function ModeToggle({
         }`}
       >
         <Cpu className="h-4 w-4" aria-hidden="true" />
-        Demo data
+        Simulated data
       </button>
       <button
         type="button"

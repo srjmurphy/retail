@@ -6,6 +6,8 @@
     "dev": "next dev --turbopack",
     "build": "next build",
     "start": "next start",
+    "eval": "node scripts/run-evals.mjs",
+    "eval:live": "EVAL_LIVE=1 node scripts/run-evals.mjs",
     "fetch:cookbook-assets": "node scripts/fetch-cookbook-assets.mjs",
     "check": "tsc --noEmit"
   },

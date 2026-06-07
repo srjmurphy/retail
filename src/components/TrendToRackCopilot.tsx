@@ -237,7 +237,12 @@ function ToolTrace({ result }: { result: TrendToRackResult }) {
       <div className="mt-4 space-y-3">
         {result.trace.map((trace) => (
           <div key={trace.name} className="rounded-md border border-neutral-200 bg-neutral-50 p-3">
-            <p className="font-mono text-xs font-semibold text-neutral-950">{trace.name}</p>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="font-mono text-xs font-semibold text-neutral-950">{trace.name}</p>
+              <p className="text-xs text-neutral-500">
+                {trace.selectedBy ?? "system"} · {trace.durationMs ?? 0} ms
+              </p>
+            </div>
             <pre className="mt-2 max-h-64 overflow-auto rounded bg-neutral-950 p-3 text-xs leading-5 text-neutral-100">
               {JSON.stringify({ input: trace.input, output: trace.output }, null, 2)}
             </pre>
@@ -256,6 +261,7 @@ export function TrendToRackCopilot({
   result,
   onResult,
   onFallback,
+  sessionId,
 }: {
   mode: RunMode;
   demandRecords: DemandRecord[];
@@ -264,6 +270,7 @@ export function TrendToRackCopilot({
   result: TrendToRackResult | null;
   onResult: (result: TrendToRackResult) => void;
   onFallback: (message: string | null) => void;
+  sessionId: string;
 }) {
   const [prompt, setPrompt] = useState(
     "What demand are we missing before this weekend, and what should we move, promote, or brief?",
@@ -293,6 +300,7 @@ export function TrendToRackCopilot({
           threshold,
           demandRecords,
           mode,
+          sessionId,
         }),
       }).then(async (response) => {
         if (!response.ok) throw new Error("Maven could not complete the request.");
@@ -408,6 +416,10 @@ export function TrendToRackCopilot({
                   <span className="rounded bg-white/15 px-2.5 py-1">
                     ${dashboard.missedRevenue} at risk
                   </span>
+                  <span className="rounded bg-white/15 px-2.5 py-1">
+                    {result.orchestration === "model_tool_loop" ? "Model-selected tools" : "Deterministic analysis"}
+                  </span>
+                  <span className="rounded bg-white/15 px-2.5 py-1">{result.durationMs} ms</span>
                 </div>
               </div>
               <ArrowRight className="h-6 w-6 text-violet-200" aria-hidden="true" />

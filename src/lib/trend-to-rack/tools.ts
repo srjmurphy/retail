@@ -1,4 +1,5 @@
 import type { BuySignal, DemandRecord, TrendToolTrace } from "@/types/demo";
+import type { TrendToolName } from "./types";
 import { STORE_LOCATIONS } from "@/lib/store-route/locations";
 import { getInventoryRecords } from "@/lib/inventory/tools";
 import { countBy, sumMissedRevenue } from "@/lib/demand-log/summarize";
@@ -204,33 +205,56 @@ export function runTrendTools(records: DemandRecord[], threshold: number) {
       name: "analyze_customer_intents",
       input: { recordCount: records.length },
       output: analyzeCustomerIntents(records),
+      selectedBy: "demo",
     },
     {
       name: "inspect_inventory_gaps",
       input: { recordCount: records.length },
       output: inspectInventoryGaps(records),
+      selectedBy: "demo",
     },
     {
       name: "summarize_substitution_trends",
       input: { recordCount: records.length },
       output: summarizeSubstitutionTrends(records),
+      selectedBy: "demo",
     },
     {
       name: "inspect_store_location_failures",
       input: { recordCount: records.length },
       output: inspectStoreLocationFailures(records),
+      selectedBy: "demo",
     },
     {
       name: "compare_competitor_signal",
       input: { simulated: true },
       output: compareCompetitorSignal(),
+      selectedBy: "demo",
     },
     {
       name: "recommend_business_actions",
       input: { threshold },
       output: recommendBusinessActions({ records, threshold }),
+      selectedBy: "demo",
     },
   ];
 
   return traces;
+}
+
+export function executeTrendTool(name: TrendToolName, records: DemandRecord[], threshold: number) {
+  switch (name) {
+    case "analyze_customer_intents":
+      return analyzeCustomerIntents(records);
+    case "inspect_inventory_gaps":
+      return inspectInventoryGaps(records);
+    case "summarize_substitution_trends":
+      return summarizeSubstitutionTrends(records);
+    case "inspect_store_location_failures":
+      return inspectStoreLocationFailures(records);
+    case "compare_competitor_signal":
+      return compareCompetitorSignal();
+    case "recommend_business_actions":
+      return recommendBusinessActions({ records, threshold });
+  }
 }
