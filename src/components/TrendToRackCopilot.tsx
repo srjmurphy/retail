@@ -214,8 +214,8 @@ function EvidenceDetails({ result }: { result: TrendToRackResult }) {
           <section key={section.title}>
             <h3 className="text-xs font-semibold uppercase tracking-[0.14em] text-neutral-500">{section.title}</h3>
             <ul className="mt-2 space-y-1 text-xs leading-5 text-neutral-600">
-              {section.items.slice(0, 3).map((item) => (
-                <li key={item} className="border-l-2 border-neutral-200 pl-2">
+              {section.items.slice(0, 3).map((item, index) => (
+                <li key={`${section.title}-${index}-${item}`} className="border-l-2 border-neutral-200 pl-2">
                   {item}
                 </li>
               ))}
@@ -235,8 +235,8 @@ function ToolTrace({ result }: { result: TrendToRackResult }) {
         <ChevronDown className="h-4 w-4" aria-hidden="true" />
       </summary>
       <div className="mt-4 space-y-3">
-        {result.trace.map((trace) => (
-          <div key={trace.name} className="rounded-md border border-neutral-200 bg-neutral-50 p-3">
+        {result.trace.map((trace, index) => (
+          <div key={`${trace.name}-${index}`} className="rounded-md border border-neutral-200 bg-neutral-50 p-3">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <p className="font-mono text-xs font-semibold text-neutral-950">{trace.name}</p>
               <p className="text-xs text-neutral-500">

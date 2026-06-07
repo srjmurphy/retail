@@ -104,6 +104,7 @@ async function pathToDataUrl(path: string) {
 function IntentChips({ intent }: { intent: InputIntent | null }) {
   if (!intent) return null;
 
+  const seen = new Set<string>();
   const chips = [
     intent.occasion,
     intent.gender,
@@ -111,7 +112,12 @@ function IntentChips({ intent }: { intent: InputIntent | null }) {
     intent.budget ? `under $${intent.budget}` : "no budget",
     ...intent.colours,
     ...intent.styleConstraints,
-  ].filter(Boolean);
+  ].filter((chip) => {
+    const key = chip.trim().toLowerCase();
+    if (!key || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 
   return (
     <div className="flex flex-wrap gap-2">
