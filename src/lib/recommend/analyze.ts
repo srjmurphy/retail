@@ -199,6 +199,12 @@ export function analyzeInputDemo({
   };
 }
 
+/*
+ * VIDEO ANCHOR: MULTIMODAL INTENT
+ * - A vision-capable model receives the image and optional customer context.
+ * - Strict JSON Schema turns model output into predictable application data.
+ * - Unknown occasion, size and budget stay unknown; stock facts are never inferred.
+ */
 export async function analyzeInputLive({
   query,
   inputMode,

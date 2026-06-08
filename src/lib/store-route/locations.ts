@@ -268,6 +268,12 @@ const OAK_STREET_LOCATIONS: StoreLocationRecord[] = [
       "Associate can prepare Fitting Room 6",
     ],
   },
+  /*
+   * VIDEO ANCHOR: STORE ROUTE
+   * - Floor, department, aisle and bay are trusted RetailNext data, not model output.
+   * - Route steps turn an AI recommendation into an associate-ready action.
+   * - This black-heel record is used by the photographed-dress complete-look flow.
+   */
   {
     productId: "35788",
     storeId: "oak-street",

@@ -6,6 +6,12 @@ import { validateImageDataUrl } from "@/lib/recommend/image-validation";
 
 export const runtime = "nodejs";
 
+/*
+ * VIDEO ANCHOR: API ENTRY
+ * - One server-side endpoint accepts both text and photo requests.
+ * - Uploads are validated before reaching any model or retrieval code.
+ * - Live and deterministic modes share the same typed recommendation pipeline.
+ */
 export async function POST(request: Request) {
   try {
     const body = (await request.json()) as {

@@ -96,6 +96,12 @@ function rankResults(cards: RecommendationCard[]) {
   });
 }
 
+/*
+ * VIDEO ANCHOR: COMPLETE LOOK
+ * - The photographed garment is expanded into controlled complementary categories.
+ * - Catalogue metadata is authoritative for known images; uploads use visual intent.
+ * - Availability-aware ranking keeps stocked outfit pieces in the candidate set.
+ */
 function photoLookProfile(intent: InputIntent, anchor: CatalogItem | null) {
   const source = (anchor
     ? [anchor.articleType, anchor.subCategory]
@@ -461,6 +467,12 @@ function workflowCandidates(workflowId: RecommendationWorkflowId | undefined, re
   });
 }
 
+/*
+ * VIDEO ANCHOR: STYLE PIPELINE
+ * - Live mode performs model analysis and dynamic embedding retrieval.
+ * - The same flow then invokes inventory tools and the suitability guardrail.
+ * - Only accepted, in-stock anchors and complementary items reach the primary edit.
+ */
 async function runPipeline(request: RecommendationRequest, runMode: RunMode): Promise<RecommendResponse> {
   const startedAt = new Date();
   const startedMs = Date.now();
@@ -519,6 +531,12 @@ async function runPipeline(request: RecommendationRequest, runMode: RunMode): Pr
       request.inputMode === "photo" &&
       Boolean(request.selectedSampleId) &&
       candidate.item.id === request.selectedSampleId;
+    /*
+     * VIDEO ANCHOR: RECOMMENDATION ROLES
+     * - Roles are assigned by the backend, not inferred by the React interface.
+     * - A known source product is the anchor; outfit additions are complements.
+     * - The typed role controls explanation, ranking and frontend grouping.
+     */
     const recommendationRole: RecommendationRole = isSelectedCatalogueImage
       ? "anchor"
       : request.inputMode === "photo" && isComplement(candidate.item, intent, photoAnchor)

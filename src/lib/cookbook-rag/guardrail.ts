@@ -50,6 +50,12 @@ export function guardrailCheckDemo(intent: InputIntent, item: CatalogItem): Guar
   };
 }
 
+/*
+ * VIDEO ANCHOR: SUITABILITY GUARDRAIL
+ * - Retrieval is only candidate generation; it does not guarantee recommendation.
+ * - Structured decisions cover direct matches and credible complete-look additions.
+ * - Inventory and store facts remain outside the model's authority.
+ */
 export async function guardrailCheckLive(intent: InputIntent, items: CatalogItem[]) {
   const client = getOpenAIClient();
 

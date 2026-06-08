@@ -199,6 +199,12 @@ export function recommendBusinessActions({
   };
 }
 
+/*
+ * VIDEO ANCHOR: GROW ANALYTICS TOOLS
+ * - Each tool performs a bounded analysis over trusted demand records.
+ * - The model may select tools, but deterministic code calculates evidence and revenue.
+ * - The same functions support the repeatable demo path and the Live tool loop.
+ */
 export function runTrendTools(records: DemandRecord[], threshold: number) {
   const traces: TrendToolTrace[] = [
     {
