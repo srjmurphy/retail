@@ -147,7 +147,7 @@ function deterministicResult({
 }
 
 /*
- * VIDEO ANCHOR: GROW TOOL CATALOG
+ * VIDEO ANCHOR 09: GROW TOOL CATALOG
  * - OpenAI receives a constrained list of approved retail analytics functions.
  * - Tool schemas accept no arbitrary parameters or direct access to underlying data.
  * - Descriptions tell the model when each evidence-producing function is appropriate.
@@ -175,7 +175,7 @@ const trendTools: OpenAI.Chat.Completions.ChatCompletionTool[] = toolNames.map((
 }));
 
 /*
- * VIDEO ANCHOR: GROW TOOL LOOP
+ * VIDEO ANCHOR 10: GROW TOOL LOOP
  * - The model selects an analytical path, then application code executes each tool.
  * - Tool outputs are returned to the model for a grounded executive synthesis.
  * - Policy guarantees the core intent and action tools if the model omits them.

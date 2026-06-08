@@ -140,7 +140,7 @@ export async function runMavenEvals(includeLive = false) {
     );
 
     /*
-     * VIDEO ANCHOR: LIVE PHOTO EVALS
+     * VIDEO ANCHOR 12: LIVE PHOTO EVALS
      * - These tests call the actual multimodal, retrieval, guardrail and inventory path.
      * - The dress must return a verified anchor plus stocked heels and hosiery.
      * - The shirt must remain in stock and return trousers, formal shoes and a tie.
