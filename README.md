@@ -65,7 +65,7 @@ Maven Live is an unambiguously dynamic path:
 6. OpenAI tool calling requests inventory and location facts from local RetailNext functions.
 7. Results are ranked by relevance, local fulfilment, nearby fulfilment and commercial priority.
 
-An uploaded photo is used for multimodal intent extraction. Retrieval is then text-embedding based; this prototype does not claim direct image-to-image similarity.
+An uploaded photo is used for multimodal intent extraction. Retrieval is then text-embedding based; this prototype does not claim direct image-to-image similarity. Photo mode preserves a known catalogue image as the verified style anchor, expands the intent into relevant complete-the-look categories, and checks live inventory before presenting complementary products such as footwear, hosiery, trousers or ties.
 
 Selecting a story in Maven Live uses only the story prompt. Curated product IDs are never substituted into Live retrieval.
 
@@ -151,7 +151,7 @@ To include paid Maven Live checks:
 npm run eval:live
 ```
 
-Live evaluations verify that story prompts do not activate curated candidates and that an uploaded image is interpreted through the multimodal model.
+Live evaluations verify that story prompts do not activate curated candidates, a black dress returns an in-stock style anchor with complementary heels and hosiery, and the blue formal shirt remains in stock while returning trousers, formal shoes and a tie.
 
 The machine-readable report is also available from:
 

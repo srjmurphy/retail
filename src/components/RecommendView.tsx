@@ -372,6 +372,7 @@ export function RecommendView({
       const requestInputMode = inputModeOverride ?? inputMode;
       const requestQuery = queryOverride ?? (requestInputMode === "photo" ? photoContext : query);
       let imageDataUrl = uploadedImageDataUrl;
+      const usingUploadedImage = Boolean(uploadedImageDataUrl);
       const sample = sampleImages.find((item) => item.id === selectedSampleId);
 
       if (mode === "live" && requestInputMode === "photo" && !imageDataUrl && sample) {
@@ -387,7 +388,7 @@ export function RecommendView({
           mode,
           inputMode: requestInputMode,
           query: requestQuery,
-          selectedSampleId,
+          selectedSampleId: requestInputMode === "photo" && !usingUploadedImage ? selectedSampleId : undefined,
           imageDataUrl,
           workflowId,
           sessionId,
@@ -409,6 +410,19 @@ export function RecommendView({
       setLoading(false);
     }
   }
+
+  const anchorRecommendations = recommendations.filter(
+    (recommendation) => recommendation.recommendationRole === "anchor",
+  );
+  const inspiredRecommendations = recommendations.filter(
+    (recommendation) => recommendation.recommendationRole === "match",
+  );
+  const complementaryRecommendations = recommendations.filter(
+    (recommendation) => recommendation.recommendationRole === "complement",
+  );
+  const hasPhotoEdit =
+    trace?.mode === "live" &&
+    (anchorRecommendations.length > 0 || complementaryRecommendations.length > 0);
 
   return (
     <section>
@@ -634,11 +648,63 @@ export function RecommendView({
         </div>
 
         {recommendations.length ? (
-          <div className="grid gap-4 xl:grid-cols-2">
-            {recommendations.map((recommendation) => (
-              <ProductCard key={recommendation.product.id} recommendation={recommendation} onLocate={onLocate} />
-            ))}
-          </div>
+          hasPhotoEdit ? (
+            <div className="space-y-5">
+              {anchorRecommendations.length || inspiredRecommendations.length ? (
+                <section>
+                  <div className="mb-3">
+                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-violet-700">
+                      {anchorRecommendations.length ? "Style anchor" : "Inspired matches"}
+                    </p>
+                    <h2 className="mt-1 text-lg font-semibold text-neutral-950">
+                      {anchorRecommendations.length
+                        ? "The product Maven recognised"
+                        : "Products that carry the visual direction"}
+                    </h2>
+                  </div>
+                  <div className="grid gap-4 xl:grid-cols-2">
+                    {[...anchorRecommendations, ...inspiredRecommendations].map((recommendation) => (
+                      <ProductCard
+                        key={recommendation.product.id}
+                        recommendation={recommendation}
+                        onLocate={onLocate}
+                      />
+                    ))}
+                  </div>
+                </section>
+              ) : null}
+              {complementaryRecommendations.length ? (
+                <section className="rounded-lg border border-rose-200 bg-rose-50/40 p-4">
+                  <div className="mb-3">
+                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-rose-700">
+                      Complete the look
+                    </p>
+                    <h2 className="mt-1 text-lg font-semibold text-neutral-950">
+                      Complementary items ready to add
+                    </h2>
+                    <p className="mt-1 text-sm text-neutral-600">
+                      Maven expands the visual style into an outfit, then verifies each upsell against live inventory.
+                    </p>
+                  </div>
+                  <div className="grid gap-4 xl:grid-cols-2">
+                    {complementaryRecommendations.map((recommendation) => (
+                      <ProductCard
+                        key={recommendation.product.id}
+                        recommendation={recommendation}
+                        onLocate={onLocate}
+                      />
+                    ))}
+                  </div>
+                </section>
+              ) : null}
+            </div>
+          ) : (
+            <div className="grid gap-4 xl:grid-cols-2">
+              {recommendations.map((recommendation) => (
+                <ProductCard key={recommendation.product.id} recommendation={recommendation} onLocate={onLocate} />
+              ))}
+            </div>
+          )
         ) : trace ? (
           <div
             className={`rounded-lg border p-5 ${

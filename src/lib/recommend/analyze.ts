@@ -83,6 +83,15 @@ function extractGender(query: string) {
   return "Any";
 }
 
+function normalizeGender(gender: string) {
+  const normalized = gender.trim().toLowerCase();
+
+  if (["men", "man", "male", "mens", "men's"].includes(normalized)) return "Men";
+  if (["women", "woman", "female", "womens", "women's"].includes(normalized)) return "Women";
+  if (["any", "unisex", "unknown", "not specified"].includes(normalized)) return "Any";
+  return gender;
+}
+
 function extractOccasion(query: string) {
   const lower = query.toLowerCase();
 
@@ -280,10 +289,13 @@ export async function analyzeInputLive({
   return {
     items: Array.isArray(parsed.items) ? parsed.items.map(String) : fallback.items,
     category: parsed.category || fallback.category,
-    gender: parsed.gender || fallback.gender,
+    gender: normalizeGender(parsed.gender || fallback.gender),
     occasion: parsed.occasion || fallback.occasion,
     size: parsed.size || fallback.size,
-    budget: typeof parsed.budget === "number" ? parsed.budget : fallback.budget,
+    budget:
+      typeof parsed.budget === "number" || parsed.budget === null
+        ? parsed.budget
+        : fallback.budget,
     colours: Array.isArray(parsed.colours) ? parsed.colours.map(String) : fallback.colours,
     styleConstraints: Array.isArray(parsed.styleConstraints)
       ? parsed.styleConstraints.map(String)

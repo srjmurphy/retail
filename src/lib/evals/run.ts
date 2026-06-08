@@ -146,18 +146,67 @@ export async function runMavenEvals(includeLive = false) {
       mode: "live",
       inputMode: "photo",
       query: "",
+      selectedSampleId: "48481",
       imageDataUrl: `data:image/jpeg;base64,${imageBytes.toString("base64")}`,
     });
+    const blackDressRoles = new Map(
+      livePhoto.recommendations.map((recommendation) => [
+        recommendation.product.id,
+        recommendation.recommendationRole,
+      ]),
+    );
     results.push(
       result(
-        "Live multimodal photo intent",
+        "Live black-dress complete look",
         livePhoto.mode === "live" &&
           livePhoto.trace.models.intent !== "deterministic-parser" &&
           livePhoto.intent.colours.includes("black") &&
           livePhoto.intent.occasion === "style inspiration" &&
           livePhoto.intent.size === "Any" &&
-          livePhoto.intent.budget === null,
-        `${livePhoto.intent.occasion}; ${livePhoto.intent.category}; ${livePhoto.intent.colours.join(", ")}`,
+          livePhoto.intent.budget === null &&
+          blackDressRoles.get("48481") === "anchor" &&
+          blackDressRoles.get("35788") === "complement" &&
+          blackDressRoles.get("33981") === "complement",
+        `${livePhoto.intent.occasion}; anchor ${blackDressRoles.get("48481")}; complements ${livePhoto.recommendations
+          .filter((item) => item.recommendationRole === "complement")
+          .map((item) => item.product.articleType)
+          .join(", ")}`,
+      ),
+    );
+
+    const shirtBytes = readFileSync(
+      path.join(process.cwd(), "public", "sample_clothes", "sample_images", "27152.jpg"),
+    );
+    const liveShirtPhoto = await runRecommendationPipeline({
+      mode: "live",
+      inputMode: "photo",
+      query: "",
+      selectedSampleId: "27152",
+      imageDataUrl: `data:image/jpeg;base64,${shirtBytes.toString("base64")}`,
+    });
+    const shirtRoles = new Map(
+      liveShirtPhoto.recommendations.map((recommendation) => [
+        recommendation.product.id,
+        recommendation.recommendationRole,
+      ]),
+    );
+    const shirtComplementTypes = new Set(
+      liveShirtPhoto.recommendations
+        .filter((item) => item.recommendationRole === "complement")
+        .map((item) => item.product.articleType.toLowerCase()),
+    );
+    results.push(
+      result(
+        "Live blue-shirt complete look",
+        liveShirtPhoto.mode === "live" &&
+          shirtRoles.get("27152") === "anchor" &&
+          liveShirtPhoto.recommendations.find((item) => item.product.id === "27152")?.inventoryStatus === "in_stock" &&
+          shirtComplementTypes.has("trousers") &&
+          shirtComplementTypes.has("formal shoes") &&
+          shirtComplementTypes.has("ties"),
+        `anchor ${shirtRoles.get("27152")} in ${
+          liveShirtPhoto.recommendations.find((item) => item.product.id === "27152")?.inventoryStatus
+        }; complements ${Array.from(shirtComplementTypes).join(", ")}`,
       ),
     );
 

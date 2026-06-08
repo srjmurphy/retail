@@ -71,6 +71,7 @@ export type GuardrailResult = {
 
 export type RecommendationCard = {
   product: CatalogCard;
+  recommendationRole: "anchor" | "match" | "complement";
   similarityScore: number;
   guardrail: GuardrailResult;
   inventory: InventoryRecord | null;

@@ -1,6 +1,7 @@
 import type {
   DemandRecord,
   GuardrailResult,
+  InputIntent,
   InputMode,
   InventoryRecord,
   RecommendationCard,
@@ -19,7 +20,7 @@ import type { InventoryToolResult } from "@/lib/inventory/types";
 import { analyzeInputDemo, analyzeInputLive } from "./analyze";
 import { buildRetrievalQuery, retrieveMatchesDemo, retrieveMatchesLive, type RetrievedCandidate } from "@/lib/cookbook-rag/retrieval";
 import { guardrailCheckDemo, guardrailCheckLive } from "@/lib/cookbook-rag/guardrail";
-import { getCatalogItem } from "@/lib/catalog/enrichCatalog";
+import { getCatalog, getCatalogItem } from "@/lib/catalog/enrichCatalog";
 import { getRecommendationWorkflow } from "./workflows";
 
 export type RecommendationRequest = {
@@ -41,7 +42,14 @@ function inventoryLabel(result: InventoryToolResult | undefined) {
   return result.status;
 }
 
-function buildWhy(item: CatalogItem, status: InventoryToolResult, intentOccasion: string) {
+type RecommendationRole = RecommendationCard["recommendationRole"];
+
+function buildWhy(
+  item: CatalogItem,
+  status: InventoryToolResult,
+  intentOccasion: string,
+  role: RecommendationRole,
+) {
   const priceText = `$${item.price}`;
   const availability =
     status.status === "in_stock"
@@ -54,13 +62,21 @@ function buildWhy(item: CatalogItem, status: InventoryToolResult, intentOccasion
         ? "currently out of stock in the requested size"
         : "not stocked at this store";
 
-  return `${item.productDisplayName} matches ${intentOccasion} through ${item.styleTags
+  const relationship =
+    role === "anchor"
+      ? "is the verified product shown in the source image"
+      : role === "complement"
+        ? `completes the ${intentOccasion} look`
+        : `matches ${intentOccasion}`;
+
+  return `${item.productDisplayName} ${relationship} through ${item.styleTags
     .slice(0, 3)
     .join(", ")}. It is ${priceText} and ${availability}.`;
 }
 
 function rankResults(cards: RecommendationCard[]) {
   return [...cards].sort((left, right) => {
+    const roleScore = { anchor: 3, match: 2, complement: 1 };
     const leftAccepted = left.guardrail.accepted ? 1 : 0;
     const rightAccepted = right.guardrail.accepted ? 1 : 0;
     const leftStock = left.inventoryStatus === "in_stock" ? 2 : left.inventoryStatus === "nearby_store" ? 1 : 0;
@@ -71,12 +87,173 @@ function rankResults(cards: RecommendationCard[]) {
       right.product.inventory_health_score * 0.002 + right.product.commercial_priority_score * 0.0015;
 
     return (
+      roleScore[right.recommendationRole] - roleScore[left.recommendationRole] ||
       rightAccepted - leftAccepted ||
       rightStock - leftStock ||
       right.similarityScore - left.similarityScore ||
       rightBusiness - leftBusiness
     );
   });
+}
+
+function photoLookProfile(intent: InputIntent, anchor: CatalogItem | null) {
+  const source = (anchor
+    ? [anchor.articleType, anchor.subCategory]
+    : [...intent.items, intent.category]
+  )
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+
+  if (source.includes("shirt") || source.includes("top")) {
+    return {
+      complementItems: ["trousers", "formal shoes", "tie"],
+      complementArticleTypes: new Set(["trousers", "formal shoes", "ties"]),
+    };
+  }
+
+  if (source.includes("dress") || source.includes("gown")) {
+    return {
+      complementItems: ["heels", "shoes", "stockings", "accessories"],
+      complementArticleTypes: new Set(["heels", "flats", "sandals", "stockings"]),
+    };
+  }
+
+  if (source.includes("heel") || source.includes("shoe") || source.includes("footwear")) {
+    return {
+      complementItems: ["dress", "skirt", "top"],
+      complementArticleTypes: new Set(["dresses", "skirts", "tops"]),
+    };
+  }
+
+  return {
+    complementItems: ["shoes", "accessories"],
+    complementArticleTypes: new Set(["heels", "formal shoes", "stockings", "ties"]),
+  };
+}
+
+function expandPhotoIntent(intent: InputIntent, anchor: CatalogItem | null) {
+  const profile = photoLookProfile(intent, anchor);
+  return {
+    ...intent,
+    gender: anchor?.gender ?? intent.gender,
+    items: Array.from(new Set([...intent.items, ...profile.complementItems])),
+    styleConstraints: Array.from(new Set([...intent.styleConstraints, "complete the look"])),
+  };
+}
+
+function photoLookCandidates(
+  retrieved: RetrievedCandidate[],
+  intent: InputIntent,
+  selectedSampleId?: string,
+) {
+  const anchor = selectedSampleId ? getCatalogItem(selectedSampleId) : null;
+  const profile = photoLookProfile(intent, anchor);
+  const complementCatalog = getCatalog()
+    .filter((item) => profile.complementArticleTypes.has(item.articleType.toLowerCase()))
+    .filter(
+      (item) =>
+        intent.gender.toLowerCase() === "any" ||
+        item.gender.toLowerCase() === intent.gender.toLowerCase() ||
+        item.gender.toLowerCase() === "unisex",
+    );
+  const availabilityByProductId = new Map(
+    checkInventoryAndLocation({
+      productIds: complementCatalog.map((item) => item.id),
+      size: intent.size,
+    }).map((result) => [result.productId, result.status]),
+  );
+  const availabilityScore = (productId: string) => {
+    const status = availabilityByProductId.get(productId);
+    return status === "in_stock" ? 3 : status === "nearby_store" ? 2 : status === "online_only" ? 1 : 0;
+  };
+  const rankedComplements = complementCatalog
+    .map((item) => {
+      const occasionFit = item.occasionTags.some(
+        (tag) =>
+          intent.occasion === "style inspiration" ||
+          tag.toLowerCase().includes(intent.occasion.toLowerCase()) ||
+          intent.occasion.toLowerCase().includes(tag.toLowerCase()),
+      );
+      const colourFit = intent.colours.some((colour) =>
+        [item.baseColour, ...item.styleTags].join(" ").toLowerCase().includes(colour.toLowerCase()),
+      );
+      const score =
+        0.62 +
+        (occasionFit ? 0.14 : 0) +
+        (colourFit ? 0.08 : 0) +
+        item.commercial_priority_score * 0.001 +
+        item.inventory_health_score * 0.0008;
+      return { item, similarityScore: Math.min(0.98, Number(score.toFixed(3))) };
+    })
+    .sort(
+      (left, right) =>
+        availabilityScore(right.item.id) - availabilityScore(left.item.id) ||
+        right.similarityScore - left.similarityScore,
+    );
+  const complements: RetrievedCandidate[] = [];
+  const complementTypes = new Set<string>();
+
+  for (const candidate of rankedComplements) {
+    const articleType = candidate.item.articleType.toLowerCase();
+    if (complementTypes.has(articleType)) continue;
+    complementTypes.add(articleType);
+    complements.push(candidate);
+    if (complements.length >= 5) break;
+  }
+
+  for (const candidate of rankedComplements) {
+    if (complements.some((selected) => selected.item.id === candidate.item.id)) continue;
+    complements.push(candidate);
+    if (complements.length >= 8) break;
+  }
+
+  const ordered: RetrievedCandidate[] = [];
+  const selectedIds = new Set<string>();
+  const add = (candidate: RetrievedCandidate) => {
+    if (selectedIds.has(candidate.item.id)) return;
+    selectedIds.add(candidate.item.id);
+    ordered.push(candidate);
+  };
+
+  if (anchor) add({ item: anchor, similarityScore: 1 });
+  complements.forEach(add);
+  retrieved.forEach(add);
+
+  return ordered;
+}
+
+function isComplement(item: CatalogItem, intent: InputIntent, anchor: CatalogItem | null) {
+  return photoLookProfile(intent, anchor).complementArticleTypes.has(item.articleType.toLowerCase());
+}
+
+function complementGuardrail(intent: InputIntent, item: CatalogItem): GuardrailResult | null {
+  const genderFit =
+    intent.gender.toLowerCase() === "any" ||
+    item.gender.toLowerCase() === intent.gender.toLowerCase() ||
+    item.gender.toLowerCase() === "unisex";
+  const budgetFit = !intent.budget || item.price <= intent.budget;
+
+  if (!genderFit || !budgetFit) return null;
+  return {
+    accepted: true,
+    reason: "Accepted as a complementary item that completes the look while respecting gender and budget.",
+  };
+}
+
+function diversifyComplements(cards: RecommendationCard[], limit: number) {
+  const selected: RecommendationCard[] = [];
+  const articleTypes = new Set<string>();
+
+  for (const card of cards) {
+    const articleType = card.product.articleType.toLowerCase();
+    if (articleTypes.has(articleType)) continue;
+    articleTypes.add(articleType);
+    selected.push(card);
+    if (selected.length >= limit) break;
+  }
+
+  return selected;
 }
 
 function estimateLostRevenue({
@@ -288,7 +465,7 @@ async function runPipeline(request: RecommendationRequest, runMode: RunMode): Pr
   const startedAt = new Date();
   const startedMs = Date.now();
   const requestId = `style-${crypto.randomUUID()}`;
-  const intent =
+  const analyzedIntent =
     runMode === "live"
       ? await analyzeInputLive(request)
       : analyzeInputDemo({
@@ -296,9 +473,19 @@ async function runPipeline(request: RecommendationRequest, runMode: RunMode): Pr
           inputMode: request.inputMode,
           selectedSampleId: request.selectedSampleId,
         });
+  const photoAnchor =
+    request.inputMode === "photo" && request.selectedSampleId
+      ? getCatalogItem(request.selectedSampleId)
+      : null;
+  const intent =
+    request.inputMode === "photo" ? expandPhotoIntent(analyzedIntent, photoAnchor) : analyzedIntent;
   const rawRetrieved: RetrievedCandidate[] =
     runMode === "live" ? await retrieveMatchesLive(intent) : await retrieveMatchesDemo(intent);
-  const retrieved = runMode === "demo" ? workflowCandidates(request.workflowId, rawRetrieved) : rawRetrieved;
+  const modeCandidates = runMode === "demo" ? workflowCandidates(request.workflowId, rawRetrieved) : rawRetrieved;
+  const retrieved =
+    request.inputMode === "photo"
+      ? photoLookCandidates(modeCandidates, intent, request.selectedSampleId)
+      : modeCandidates;
   const candidateIds = retrieved.slice(0, 16).map((candidate) => candidate.item.id);
   const inventoryTool =
     runMode === "live"
@@ -332,32 +519,53 @@ async function runPipeline(request: RecommendationRequest, runMode: RunMode): Pr
       request.inputMode === "photo" &&
       Boolean(request.selectedSampleId) &&
       candidate.item.id === request.selectedSampleId;
+    const recommendationRole: RecommendationRole = isSelectedCatalogueImage
+      ? "anchor"
+      : request.inputMode === "photo" && isComplement(candidate.item, intent, photoAnchor)
+        ? "complement"
+        : "match";
     const guardrail = isSelectedCatalogueImage
       ? {
           accepted: true,
           reason: "Accepted: this product is the catalogue item shown in the selected source image.",
         }
+      : recommendationRole === "complement"
+        ? complementGuardrail(intent, candidate.item) ?? evaluatedGuardrail
       : evaluatedGuardrail;
 
     return {
       product: toCatalogCard(candidate.item),
+      recommendationRole,
       similarityScore: Number(candidate.similarityScore.toFixed(3)),
       guardrail,
       inventory: inventoryResult.inventory as InventoryRecord | null,
       location: inventoryResult.location as StoreLocationRecord | null,
       inventoryStatus: inventoryLabel(inventoryResult),
-      whyThisMatches: buildWhy(candidate.item, inventoryResult, intent.occasion),
+      whyThisMatches: buildWhy(candidate.item, inventoryResult, intent.occasion, recommendationRole),
       rankingReason: guardrail.accepted
-        ? "Matched + inventory availability + inventory health priority. Business-aware ranking is applied only after relevance."
+        ? recommendationRole === "complement"
+          ? "Complete-the-look item ranked by styling relevance, availability, inventory health and commercial priority."
+          : "Matched + inventory availability + inventory health priority. Business-aware ranking is applied only after relevance."
         : "Retrieved as evidence, then dropped by the quality guardrail.",
     };
   });
 
   const cardByProductId = new Map(cards.map((card) => [card.product.id, card]));
   const rankedCards = rankResults(cards);
-  const recommendations = rankedCards
-    .filter((card) => card.guardrail.accepted && card.inventoryStatus === "in_stock")
-    .slice(0, 5);
+  const inStockAccepted = rankedCards.filter(
+    (card) => card.guardrail.accepted && card.inventoryStatus === "in_stock",
+  );
+  const recommendations =
+    request.inputMode === "photo"
+      ? [
+          ...inStockAccepted.filter((card) => card.recommendationRole === "anchor").slice(0, 1),
+          ...inStockAccepted.filter((card) => card.recommendationRole === "match").slice(0, photoAnchor ? 0 : 2),
+          ...diversifyComplements(
+            inStockAccepted.filter((card) => card.recommendationRole === "complement"),
+            4,
+          ),
+        ]
+      : inStockAccepted.slice(0, 5);
   const partialMatches =
     recommendations.length > 0
       ? rankedCards
@@ -413,7 +621,9 @@ async function runPipeline(request: RecommendationRequest, runMode: RunMode): Pr
       reason: card.guardrail.reason,
     })),
     rankingAnnotation:
-      "Ranking order: guardrail quality first, then Oak Street availability, then nearby-store availability, then inventory health and commercial priority.",
+      request.inputMode === "photo"
+        ? "Photo ranking preserves the verified style anchor, then diversifies complete-the-look categories by availability, styling relevance, inventory health and commercial priority."
+        : "Ranking order: guardrail quality first, then Oak Street availability, then nearby-store availability, then inventory health and commercial priority.",
     retrievalEvidence: retrieved.slice(0, 5).map((candidate, index) => {
       const card = cardByProductId.get(candidate.item.id);
       return {
@@ -445,6 +655,7 @@ async function runPipeline(request: RecommendationRequest, runMode: RunMode): Pr
         "hybrid relevance score",
         "guardrail acceptance",
         "availability-aware ranking",
+        ...(request.inputMode === "photo" ? ["complete-the-look category expansion"] : []),
         "estimated missed revenue",
       ],
     },

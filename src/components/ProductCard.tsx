@@ -50,6 +50,17 @@ export function ProductCard({
       <ProductImage recommendation={recommendation} />
       <div className="mt-4 flex items-start justify-between gap-3">
         <div>
+          {recommendation.recommendationRole !== "match" ? (
+            <span
+              className={`mb-2 inline-flex rounded px-2 py-1 text-xs font-semibold ${
+                recommendation.recommendationRole === "anchor"
+                  ? "bg-violet-50 text-violet-700"
+                  : "bg-rose-50 text-rose-700"
+              }`}
+            >
+              {recommendation.recommendationRole === "anchor" ? "Style anchor" : "Complete the look"}
+            </span>
+          ) : null}
           <p className="text-xs font-semibold uppercase tracking-[0.14em] text-neutral-500">
             {recommendation.product.articleType}
           </p>
@@ -110,6 +121,10 @@ export function ProductCard({
           <div>
             <dt className="font-semibold text-neutral-900">Similarity score</dt>
             <dd>{recommendation.similarityScore}</dd>
+          </div>
+          <div>
+            <dt className="font-semibold text-neutral-900">Recommendation role</dt>
+            <dd>{recommendation.recommendationRole}</dd>
           </div>
           <div>
             <dt className="font-semibold text-neutral-900">Guardrail</dt>

@@ -88,12 +88,13 @@ export async function guardrailCheckLive(intent: InputIntent, items: CatalogItem
         {
           role: "system",
           content:
-            "You are a retail recommendation guardrail. Only judge style, occasion, size and budget fit. Do not invent inventory or store facts. Return JSON: { results: [{ productId, accepted, reason }] }.",
+            "You are a retail styling guardrail. Judge whether each candidate is either a strong visual/category match or a credible complementary item for a complete outfit. Shoes, heels, trousers, ties, hosiery and accessories should not be rejected merely because they differ from the anchor garment; accept them when they suit the shopper's gender, occasion, palette, size and budget. Do not invent inventory or store facts. Return JSON: { results: [{ productId, accepted, reason }] }.",
         },
         {
           role: "user",
           content: JSON.stringify({
             intent,
+            recommendationGoal: "Build a complete shoppable look around the requested or photographed anchor item.",
             candidates: items.map((item) => ({
               productId: item.id,
               productDisplayName: item.productDisplayName,
