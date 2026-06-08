@@ -200,7 +200,7 @@ export function recommendBusinessActions({
 }
 
 /*
- * VIDEO ANCHOR 08: GROW ANALYTICS TOOLS
+ * VIDEO ANCHOR 07: GROW ANALYTICS TOOLS
  * - Each tool performs a bounded analysis over trusted demand records.
  * - The model may select tools, but deterministic code calculates evidence and revenue.
  * - The same functions support the repeatable demo path and the Live tool loop.

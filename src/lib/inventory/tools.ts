@@ -196,7 +196,7 @@ function findNearbyInventory(productId: string, size: string, requestedStoreId: 
 }
 
 /*
- * VIDEO ANCHOR 06: FULFIL INVENTORY
+ * VIDEO ANCHOR 05: FULFIL INVENTORY
  * - Product, size and requested store are checked by deterministic application code.
  * - Typed outcomes distinguish local stock, nearby stock and genuine unavailability.
  * - Locate actions require both a stock record and a verified store location.

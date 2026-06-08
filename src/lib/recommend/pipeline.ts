@@ -471,7 +471,8 @@ function workflowCandidates(workflowId: RecommendationWorkflowId | undefined, re
  * VIDEO ANCHOR 04: STYLE PIPELINE
  * - Live mode performs model analysis and dynamic embedding retrieval.
  * - The same flow then invokes inventory tools and the suitability guardrail.
- * - Only accepted, in-stock anchors and complementary items reach the primary edit.
+ * - Typed roles separate the source item from matches and complete-look additions.
+ * - Only accepted, in-stock products reach the primary edit.
  */
 async function runPipeline(request: RecommendationRequest, runMode: RunMode): Promise<RecommendResponse> {
   const startedAt = new Date();
@@ -531,12 +532,6 @@ async function runPipeline(request: RecommendationRequest, runMode: RunMode): Pr
       request.inputMode === "photo" &&
       Boolean(request.selectedSampleId) &&
       candidate.item.id === request.selectedSampleId;
-    /*
-     * VIDEO ANCHOR 05: RECOMMENDATION ROLES
-     * - Roles are assigned by the backend, not inferred by the React interface.
-     * - A known source product is the anchor; outfit additions are complements.
-     * - The typed role controls explanation, ranking and frontend grouping.
-     */
     const recommendationRole: RecommendationRole = isSelectedCatalogueImage
       ? "anchor"
       : request.inputMode === "photo" && isComplement(candidate.item, intent, photoAnchor)

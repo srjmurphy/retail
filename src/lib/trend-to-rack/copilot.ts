@@ -147,10 +147,11 @@ function deterministicResult({
 }
 
 /*
- * VIDEO ANCHOR 09: GROW TOOL CATALOG
+ * VIDEO ANCHOR 08: GROW TOOL CATALOG + LOOP
  * - OpenAI receives a constrained list of approved retail analytics functions.
- * - Tool schemas accept no arbitrary parameters or direct access to underlying data.
- * - Descriptions tell the model when each evidence-producing function is appropriate.
+ * - The model selects tools; application code executes them over trusted records.
+ * - Tool results return to the model for grounded synthesis.
+ * - Policy guarantees core analysis if the model omits it.
  */
 const trendTools: OpenAI.Chat.Completions.ChatCompletionTool[] = toolNames.map((name) => ({
   type: "function",
@@ -174,12 +175,6 @@ const trendTools: OpenAI.Chat.Completions.ChatCompletionTool[] = toolNames.map((
   },
 }));
 
-/*
- * VIDEO ANCHOR 10: GROW TOOL LOOP
- * - The model selects an analytical path, then application code executes each tool.
- * - Tool outputs are returned to the model for a grounded executive synthesis.
- * - Policy guarantees the core intent and action tools if the model omits them.
- */
 async function runModelToolLoop(input: TrendInput, records: TrendInput["demandRecords"]) {
   const client = getOpenAIClient();
   const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [

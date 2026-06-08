@@ -269,7 +269,7 @@ const OAK_STREET_LOCATIONS: StoreLocationRecord[] = [
     ],
   },
   /*
-   * VIDEO ANCHOR 07: STORE ROUTE
+   * VIDEO ANCHOR 06: STORE ROUTE
    * - Floor, department, aisle and bay are trusted RetailNext data, not model output.
    * - Route steps turn an AI recommendation into an associate-ready action.
    * - This black-heel record is used by the photographed-dress complete-look flow.
